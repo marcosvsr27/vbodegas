@@ -1,0 +1,17 @@
+{
+  "name": "vbodegas-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n WEB,API -c green,cyan \"npm --prefix app run dev\" \"npm --prefix server run dev\"",
+    "install-all": "npm install --prefix app && npm install --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "dayjs": "^1.11.18",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

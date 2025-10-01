@@ -1,0 +1,8 @@
+# dependencias
+node_modules
+
+# build del frontend
+dist
+
+# variables locales
+.env
