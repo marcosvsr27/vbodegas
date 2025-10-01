@@ -9,7 +9,8 @@
     "seed-postgres": "node seed-postgres.js",
     "start": "node index.js",
     "migrate-postgres": "node migrate-postgres.js",
-    "migrate": "node migrate-postgres.js"
+    "migrate": "node migrate-postgres.js",
+    "postinstall": "npm run migrate && npm run seed"
   },
   "engines": {
     "node": ">=18.0.0"
