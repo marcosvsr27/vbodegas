@@ -332,11 +332,14 @@ export default function AdminPanel() {
       };
       const res = await adminPatch(b.id, body);
       if (res?.data) {
-        setBodegas((prev) => prev.map((x) => (x.id === b.id ? res.data : x)));
+        // ✅ Mantener el orden original al actualizar
+        setBodegas((prev) => prev.map((x) => 
+          x.id === b.id ? { ...x, ...res.data } : x
+        ));
       }
     } catch (e) {
       console.error("⚠ adminPatch", e);
-      alert("Error guardando cambios");
+      alert("Error guardando cambios: " + (e.message || ""));
     }
   }
 

@@ -1,7 +1,7 @@
 // src/api.ts
 import type { Bodega, EstadisticasAdmin } from "./types";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8787";
+const BASE_URL = import.meta.env.VITE_API_URL; 
 const API_URL = `${BASE_URL}/api`;
 
 // Helper para llamadas a la API
@@ -11,7 +11,7 @@ function baseFetch(path: string, init: RequestInit = {}) {
     "Content-Type": "application/json",
     ...((init.headers || {}) as Record<string, string>),
   };
-  
+
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }

@@ -39,7 +39,10 @@ export default function AdminUsers() {
       const response = await fetch(`${API_URL}/api/admin/validate-superadmin`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}` // ✅ Agregado
+        },
         body: JSON.stringify({ password: superAdminPassword })
       });
       
@@ -47,10 +50,11 @@ export default function AdminUsers() {
         setAuthenticated(true);
         await load();
       } else {
-        setErr("Contraseña de superadmin incorrecta");
+        const errorData = await response.json();
+        setErr(errorData.error || "Contraseña de superadmin incorrecta");
       }
     } catch (e: any) {
-      setErr("Error validando contraseña");
+      setErr("Error validando contraseña: " + (e.message || ""));
     }
   }
 

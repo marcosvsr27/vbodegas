@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import pg from "pg";
 import { parse } from "csv-parse/sync";
+import bcrypt from "bcryptjs";
 
 const { Client } = pg;
 
@@ -62,6 +63,13 @@ async function seed() {
         coords ? JSON.stringify(coords.points) : "[]"
       ]);
     }
+
+
+const hashed = bcrypt.hashSync("admin123", 10);
+await client.query(`
+  INSERT INTO administradores (id, nombre, email, telefono, rol, permisos, hash)
+  VALUES ($1,$2,$3,$4,$5,$6,$7)
+`, ["admin-1", "Administrador", "admin@vbodegas.com", "0000000000", "superadmin", "completo", hashed]);
 
     console.log(`✅ Seed completado: ${records.length} bodegas insertadas`);
   } catch (error) {

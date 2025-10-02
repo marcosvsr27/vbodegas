@@ -8,7 +8,7 @@ import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 
 const { Pool } = pg;
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 10000 || 8787;
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret";
 const IS_PRODUCTION = process.env.DATABASE_URL ? true : false;
 
