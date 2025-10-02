@@ -483,31 +483,49 @@ app.delete("/api/admin/admins/:id", authMiddleware, async (req, res) => {
 });
 
 // handler de validate-superadmin por este:
+cat > /tmp/validate-fix.txt << 'EOF'
 app.post("/api/admin/validate-superadmin", authMiddleware, async (req, res) => {
   try {
     const { password } = req.body;
+    console.log("🔍 1. Password recibida:", password ? "SÍ" : "NO");
+    console.log("🔍 2. Usuario del token:", JSON.stringify(req.user));
 
-    // ✅ SELECCIONAR EL HASH TAMBIÉN
     const yo = await query.get("SELECT * FROM administradores WHERE id=?", [req.user.id]);
+    console.log("🔍 3. Admin encontrado:", yo ? JSON.stringify({id: yo.id, email: yo.email, rol: yo.rol, hasHash: !!yo.hash}) : "NULL");
     
     if (!yo) {
+      console.log("❌ 4. Admin no existe");
       return res.status(401).json({ error: "No encontrado" });
     }
     
+    console.log("🔍 5. Rol:", yo.rol, "| Normalizado:", (yo.rol || "").toLowerCase());
     if ((yo.rol || "").toLowerCase() !== "superadmin") {
+      console.log("❌ 6. Rol incorrecto");
       return res.status(403).json({ error: "Se requiere rol superadmin" });
     }
 
-    if (!yo.hash || !bcrypt.compareSync(password, yo.hash)) {
+    console.log("🔍 7. Hash existe:", !!yo.hash);
+    if (!yo.hash) {
+      console.log("❌ 8. No hay hash en BD");
       return res.status(401).json({ error: "Contraseña incorrecta" });
     }
 
+    const match = bcrypt.compareSync(password, yo.hash);
+    console.log("🔍 9. Password match:", match);
+    
+    if (!match) {
+      console.log("❌ 10. Contraseña no coincide");
+      return res.status(401).json({ error: "Contraseña incorrecta" });
+    }
+
+    console.log("✅ 11. Validación exitosa");
     return res.json({ ok: true });
   } catch (e) {
-    console.error("Error validando superadmin:", e);
+    console.error("❌ Error validando superadmin:", e);
     res.status(500).json({ error: "Error validando contraseña" });
   }
 });
+EOF
 
 // ---- CLIENTES ----
 app.get("/api/admin/clientes", authMiddleware, async (req, res) => {
