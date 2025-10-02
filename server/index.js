@@ -903,25 +903,17 @@ app.post("/api/setup-superadmin", async (req, res) => {
       return res.status(403).json({ error: "Acceso denegado" });
     }
 
-    // Verificar si ya existe
-    const exists = await query.get("SELECT * FROM administradores WHERE email=?", ["admin@vbodegas.com"]);
+    // ELIMINAR TODOS los admins con ese email
+    await query.run("DELETE FROM administradores WHERE email=?", ["admin@vbodegas.com"]);
     
-    // Crear nuevo hash
+    // Crear uno nuevo limpio con ID fijo
     const hashed = bcrypt.hashSync("admin123", 10);
-    
-    if (exists) {
-      // ACTUALIZAR el hash existente
-      await query.run("UPDATE administradores SET hash=? WHERE email=?", [hashed, "admin@vbodegas.com"]);
-      return res.json({ ok: true, mensaje: "Contraseña del superadmin actualizada" });
-    }
-
-    // Si no existe, crear
     await query.run(`
       INSERT INTO administradores (id, nombre, email, telefono, rol, permisos, hash)
       VALUES (?,?,?,?,?,?,?)
-    `, ["admin-1", "Administrador", "admin@vbodegas.com", "0000000000", "superadmin", "completo", hashed]);
+    `, ["superadmin-1", "Super Admin", "admin@vbodegas.com", "0000000000", "superadmin", "completo", hashed]);
 
-    res.json({ ok: true, mensaje: "Superadmin creado exitosamente" });
+    res.json({ ok: true, mensaje: "Superadmin recreado limpiamente" });
   } catch (e) {
     console.error("Error configurando superadmin:", e);
     res.status(500).json({ error: e.message });
@@ -932,4 +924,8 @@ app.post("/api/setup-superadmin", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ API lista en http://localhost:${PORT}`);
 });
+
+
+
+
 
