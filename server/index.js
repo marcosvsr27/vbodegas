@@ -11,6 +11,7 @@ const { Pool } = pg;
 const PORT = process.env.PORT || 10000;
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret";
 const IS_PRODUCTION = process.env.DATABASE_URL ? true : false;
+
 // -------------------- Database Setup --------------------
 let db;
 
@@ -32,29 +33,29 @@ const query = {
   get: async (sql, params = []) => {
     if (IS_PRODUCTION) {
       let paramIndex = 0;
-const pgSql = sql.replace(/\?/g, () => `$${++paramIndex}`);
+      const pgSql = sql.replace(/\?/g, () => `$${++paramIndex}`);
       const result = await db.query(pgSql, params);
       return result.rows[0] || null;
     } else {
       return db.prepare(sql).get(...params);
     }
   },
-  
+
   all: async (sql, params = []) => {
     if (IS_PRODUCTION) {
       let paramIndex = 0;
-const pgSql = sql.replace(/\?/g, () => `$${++paramIndex}`);
+      const pgSql = sql.replace(/\?/g, () => `$${++paramIndex}`);
       const result = await db.query(pgSql, params);
       return result.rows;
     } else {
       return db.prepare(sql).all(...params);
     }
   },
-  
+
   run: async (sql, params = []) => {
     if (IS_PRODUCTION) {
       let paramIndex = 0;
-const pgSql = sql.replace(/\?/g, () => `$${++paramIndex}`);
+      const pgSql = sql.replace(/\?/g, () => `$${++paramIndex}`);
       await db.query(pgSql, params);
     } else {
       db.prepare(sql).run(...params);
@@ -65,7 +66,7 @@ const pgSql = sql.replace(/\?/g, () => `$${++paramIndex}`);
 // -------------------- App --------------------
 const app = express();
 
-// CORS configurado para Render
+// -------------------- CORS --------------------
 const allowedOrigins = [
   "http://localhost:5173",
   "https://vbodegasf.onrender.com"
@@ -73,11 +74,15 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("No permitido por CORS"));
+    if (!origin) return callback(null, true); // permitir Postman / mobile sin Origin
+    
+    // permitir exacto o subdominios de onrender.com
+    if (allowedOrigins.includes(origin) || origin.endsWith(".onrender.com")) {
+      return callback(null, true);
     }
+
+    console.error("❌ Bloqueado por CORS:", origin);
+    return callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
@@ -86,10 +91,9 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// Ejemplo de ruta (ajusta según tu proyecto)
+// -------------------- TEST ROUTE --------------------
 app.get("/api/ping", (req, res) => {
   res.json({ message: "pong" });
-});
 
 
 
