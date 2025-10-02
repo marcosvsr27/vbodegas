@@ -482,19 +482,22 @@ app.delete("/api/admin/admins/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// Sustituye COMPLETO el handler de validate-superadmin por este:
+// handler de validate-superadmin por este:
 app.post("/api/admin/validate-superadmin", authMiddleware, async (req, res) => {
   try {
     const { password } = req.body;
 
-    // 1) Cargar al usuario actual
+    // ✅ SELECCIONAR EL HASH TAMBIÉN
     const yo = await query.get("SELECT * FROM administradores WHERE id=?", [req.user.id]);
-    if (!yo) return res.status(401).json({ error: "No encontrado" });
+    
+    if (!yo) {
+      return res.status(401).json({ error: "No encontrado" });
+    }
+    
     if ((yo.rol || "").toLowerCase() !== "superadmin") {
       return res.status(403).json({ error: "Se requiere rol superadmin" });
     }
 
-    // 2) Comparar su propia contraseña
     if (!yo.hash || !bcrypt.compareSync(password, yo.hash)) {
       return res.status(401).json({ error: "Contraseña incorrecta" });
     }
