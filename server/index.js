@@ -66,6 +66,7 @@ const query = {
 // -------------------- App --------------------
 const app = express();
 
+
 // -------------------- CORS --------------------
 const allowedOrigins = [
   "http://localhost:5173",
@@ -74,18 +75,34 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // permitir Postman / mobile sin Origin
-    
-    // permitir exacto o subdominios de onrender.com
-    if (allowedOrigins.includes(origin) || origin.endsWith(".onrender.com")) {
-      return callback(null, true);
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("No permitido por CORS"));
     }
-
-    console.error("❌ Bloqueado por CORS:", origin);
-    return callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ["Set-Cookie"]
+}));
+
+// Importante: middleware ANTES de definir rutas
+app.use(express.json());
+app.use(cookieParser());
+
+// Responder preflights explícitamente (ayuda en algunos proxies)
+app.options("*", cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("No permitido por CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
 app.use(express.json());
@@ -94,7 +111,7 @@ app.use(cookieParser());
 // -------------------- TEST ROUTE --------------------
 app.get("/api/ping", (req, res) => {
   res.json({ message: "pong" });
-
+}); 
 
 
 
@@ -465,16 +482,24 @@ app.delete("/api/admin/admins/:id", authMiddleware, async (req, res) => {
   }
 });
 
+// Sustituye COMPLETO el handler de validate-superadmin por este:
 app.post("/api/admin/validate-superadmin", authMiddleware, async (req, res) => {
   try {
     const { password } = req.body;
-    const admin = await query.get("SELECT * FROM administradores WHERE email='admin@vbodegas.com'", []);
-    
-    if (!admin || !bcrypt.compareSync(password, admin.hash)) {
+
+    // 1) Cargar al usuario actual
+    const yo = await query.get("SELECT * FROM administradores WHERE id=?", [req.user.id]);
+    if (!yo) return res.status(401).json({ error: "No encontrado" });
+    if ((yo.rol || "").toLowerCase() !== "superadmin") {
+      return res.status(403).json({ error: "Se requiere rol superadmin" });
+    }
+
+    // 2) Comparar su propia contraseña
+    if (!yo.hash || !bcrypt.compareSync(password, yo.hash)) {
       return res.status(401).json({ error: "Contraseña incorrecta" });
     }
-    
-    res.json({ ok: true });
+
+    return res.json({ ok: true });
   } catch (e) {
     console.error("Error validando superadmin:", e);
     res.status(500).json({ error: "Error validando contraseña" });
@@ -615,21 +640,47 @@ app.get("/api/admin/stats-real", authMiddleware, async (req, res) => {
     if (!["admin", "superadmin", "editor", "viewer"].includes(req.user.rol)) {
       return res.status(403).json({ error: "Solo admins" });
     }
+
+    // Helper para convertir valores a número de forma segura
+    const toNumber = (val) => {
+      if (val === null || val === undefined || val === '') return 0;
+      const num = Number(val);
+      return isNaN(num) ? 0 : num;
+    };
+
+    const totalBodegasRow = await query.get("SELECT COUNT(*) as count FROM bodegas", []);
+    const totalBodegas = toNumber(totalBodegasRow?.count);
+
+    const disponiblesRow = await query.get("SELECT COUNT(*) as count FROM bodegas WHERE status='disponible'", []);
+    const disponibles = toNumber(disponiblesRow?.count);
+
+    const ocupadasRow = await query.get("SELECT COUNT(*) as count FROM bodegas WHERE status!='disponible'", []);
+    const ocupadas = toNumber(ocupadasRow?.count);
+
+    const totalClientesRow = await query.get("SELECT COUNT(*) as count FROM clientes", []);
+    const totalClientes = toNumber(totalClientesRow?.count);
+
+    const ocupacion = totalBodegas > 0 ? ((ocupadas / totalBodegas) * 100).toFixed(1) : "0.0";
+
+    // Ingresos mensuales con manejo robusto de NULL
+    const ingresosQuery = IS_PRODUCTION 
+      ? "SELECT COALESCE(SUM(pago_mensual),0) as total FROM clientes WHERE estado_contrato='activo'"
+      : "SELECT IFNULL(SUM(pago_mensual), 0) as total FROM clientes WHERE estado_contrato='activo'";
     
-    const totalBodegas = (await query.get("SELECT COUNT(*) as count FROM bodegas", [])).count;
-    const disponibles = (await query.get("SELECT COUNT(*) as count FROM bodegas WHERE status='disponible'", [])).count;
-    const ocupadas = (await query.get("SELECT COUNT(*) as count FROM bodegas WHERE status!='disponible'", [])).count;
-    const totalClientes = (await query.get("SELECT COUNT(*) as count FROM clientes", [])).count;
+    const ingresosRow = await query.get(ingresosQuery, []);
+    const ingresos = toNumber(ingresosRow?.total);
+
+    // Tiempo promedio con manejo robusto de NULL
+    const tiempoQuery = IS_PRODUCTION
+      ? "SELECT COALESCE(AVG(duracion_meses),0) as promedio FROM clientes"
+      : "SELECT IFNULL(AVG(duracion_meses), 0) as promedio FROM clientes";
     
-    const ocupacion = totalBodegas > 0 ? ((ocupadas / totalBodegas) * 100).toFixed(1) : 0;
-    const ingresosRow = await query.get("SELECT SUM(pago_mensual) as total FROM clientes WHERE estado_contrato='activo'", []);
-    const ingresos = ingresosRow.total || 0;
-    const tiempoRow = await query.get("SELECT AVG(duracion_meses) as promedio FROM clientes", []);
-    const tiempoPromedio = tiempoRow.promedio || 0;
-    
+    const tiempoRow = await query.get(tiempoQuery, []);
+    const tiempoPromedio = toNumber(tiempoRow?.promedio);
+
     res.json({
       ocupacion: `${ocupacion}%`,
-      ingresosMensuales: `$${ingresos.toLocaleString()} MXN`,
+      ingresosMensuales: `$${ingresos.toLocaleString("es-MX")} MXN`,
       tiempoPromedio: `${tiempoPromedio.toFixed(1)} meses`,
       tasaConversion: "12.5%",
       totalBodegas,
@@ -638,11 +689,10 @@ app.get("/api/admin/stats-real", authMiddleware, async (req, res) => {
       totalClientes
     });
   } catch (e) {
-    console.error("Error en stats-real:", e);
-    res.status(500).json({ error: "Error obteniendo estadísticas" });
+    console.error("Error en /api/admin/stats-real:", e);
+    res.status(500).json({ error: "Error obteniendo estadísticas: " + (e.message || "Error desconocido") });
   }
 });
-
 app.post("/api/admin/clientes/:id/asignar-bodega", authMiddleware, async (req, res) => {
   try {
     if (!["admin", "superadmin", "editor"].includes(req.user.rol)) {
