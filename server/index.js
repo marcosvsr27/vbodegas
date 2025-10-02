@@ -483,7 +483,6 @@ app.delete("/api/admin/admins/:id", authMiddleware, async (req, res) => {
 });
 
 // handler de validate-superadmin por este:
-cat > /tmp/validate-fix.txt << 'EOF'
 app.post("/api/admin/validate-superadmin", authMiddleware, async (req, res) => {
   try {
     const { password } = req.body;
@@ -525,7 +524,6 @@ app.post("/api/admin/validate-superadmin", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Error validando contraseña" });
   }
 });
-EOF
 
 // ---- CLIENTES ----
 app.get("/api/admin/clientes", authMiddleware, async (req, res) => {
