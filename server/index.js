@@ -905,12 +905,17 @@ app.post("/api/setup-superadmin", async (req, res) => {
 
     // Verificar si ya existe
     const exists = await query.get("SELECT * FROM administradores WHERE email=?", ["admin@vbodegas.com"]);
+    
+    // Crear nuevo hash
+    const hashed = bcrypt.hashSync("admin123", 10);
+    
     if (exists) {
-      return res.json({ ok: true, mensaje: "Superadmin ya existe", email: exists.email, rol: exists.rol });
+      // ACTUALIZAR el hash existente
+      await query.run("UPDATE administradores SET hash=? WHERE email=?", [hashed, "admin@vbodegas.com"]);
+      return res.json({ ok: true, mensaje: "Contraseña del superadmin actualizada" });
     }
 
-    // Crear superadmin
-    const hashed = bcrypt.hashSync("admin123", 10);
+    // Si no existe, crear
     await query.run(`
       INSERT INTO administradores (id, nombre, email, telefono, rol, permisos, hash)
       VALUES (?,?,?,?,?,?,?)
@@ -918,11 +923,10 @@ app.post("/api/setup-superadmin", async (req, res) => {
 
     res.json({ ok: true, mensaje: "Superadmin creado exitosamente" });
   } catch (e) {
-    console.error("Error creando superadmin:", e);
+    console.error("Error configurando superadmin:", e);
     res.status(500).json({ error: e.message });
   }
 });
-
 
 // -------------------- Server -----------------
 app.listen(PORT, () => {
