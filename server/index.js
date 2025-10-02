@@ -894,6 +894,36 @@ app.post("/api/admin/exportar-excel", authMiddleware, async (req, res) => {
   }
 });
 
+// ENDPOINT TEMPORAL - BORRAR DESPUÉS DE USAR
+app.post("/api/setup-superadmin", async (req, res) => {
+  try {
+    const { secret } = req.body;
+    
+    if (secret !== "inicializar-vbodegas-2024") {
+      return res.status(403).json({ error: "Acceso denegado" });
+    }
+
+    // Verificar si ya existe
+    const exists = await query.get("SELECT * FROM administradores WHERE email=?", ["admin@vbodegas.com"]);
+    if (exists) {
+      return res.json({ ok: true, mensaje: "Superadmin ya existe", email: exists.email, rol: exists.rol });
+    }
+
+    // Crear superadmin
+    const hashed = bcrypt.hashSync("admin123", 10);
+    await query.run(`
+      INSERT INTO administradores (id, nombre, email, telefono, rol, permisos, hash)
+      VALUES (?,?,?,?,?,?,?)
+    `, ["admin-1", "Administrador", "admin@vbodegas.com", "0000000000", "superadmin", "completo", hashed]);
+
+    res.json({ ok: true, mensaje: "Superadmin creado exitosamente" });
+  } catch (e) {
+    console.error("Error creando superadmin:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
 // -------------------- Server -----------------
 app.listen(PORT, () => {
   console.log(`✅ API lista en http://localhost:${PORT}`);
