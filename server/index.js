@@ -1,4 +1,4 @@
-// server/index.js
+// server/index.js22
 import express from "express";
 import cors from "cors";
 import Database from "better-sqlite3";
@@ -6,9 +6,6 @@ import pg from "pg";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
-import path from "path";
-import { fileURLToPath } from "url";
-import { generarContratoPDF, generarGridCalibracion } from "./utils/contratos.js";
 
 const { Pool } = pg;
 const PORT = process.env.PORT || 10000 || 8787;
@@ -755,21 +752,6 @@ app.post("/api/admin/clientes/:id/asignar-bodega", authMiddleware, async (req, r
   }
 });
 
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TPL_DIR = path.join(__dirname, "templates");
-const OUT_DIR = path.join(__dirname, "contratos");
-const TEMPLATE_PATH = path.join(TPL_DIR, "ContratoBase.pdf");
-
-
-// Asegura carpeta de salida
-import fs from "fs";
-if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
-
-// ====== Servir estático los contratos generados ======
-app.use("/contratos", express.static(OUT_DIR, { maxAge: "1d", index: false }));
-
-// ====== GENERAR CONTRATO (reemplaza el existente) ======
 app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req, res) => {
   try {
     if (!["admin", "superadmin", "editor"].includes(req.user.rol)) {
@@ -778,128 +760,29 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
 
     const clienteId = req.params.id;
     const cliente = await query.get("SELECT * FROM clientes WHERE id=?", [clienteId]);
-    if (!cliente) return res.status(404).json({ error: "Cliente no encontrado" });
+    
+    if (!cliente) {
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
 
-    const bodega = cliente.bodega_id ? await query.get("SELECT * FROM bodegas WHERE id=?", [cliente.bodega_id]) : null;
-
-    // --- Mapear datos del contrato ---
-    // Datos del Arrendador: fijos (exactos del contrato base)
-    // BBVA / CLABE / tarifa / depósito vienen del contrato original y se mantienen idénticos [oai_citation:2‡Contrato por Extencion de renta.pdf](sediment://file_00000000d7c061f792fb017bf499ed75)
-    const data = {
-      arrendatario: {
-        nombre:        req.body?.arrendatario?.nombre        ?? cliente.nombre || "",
-        representante:  req.body?.arrendatario?.representante  ?? (cliente.representante || "Representante Legal"),
-        constitucion:   req.body?.arrendatario?.constitucion   ?? (cliente.regimen_fiscal || ""),
-        domicilio:      req.body?.arrendatario?.domicilio      ?? (cliente.domicilio || ""),
-        contacto:       req.body?.arrendatario?.contacto       ?? `${cliente.telefono || ""}  ${cliente.email || ""}`,
-        bienes:         req.body?.arrendatario?.bienes         ?? "Artículos de hogar",
-      },
-
-      bodega: {
-        ident:      bodega ? `Módulo ${(bodega.number || "").split("-")[0]} No. ${bodega.number}` : "",
-        superficie: bodega ? `${bodega.area_m2 || 0} m²` : "",
-      },
-
-      vigencia: {
-        inicio: req.body?.vigencia?.inicio ?? (cliente.fecha_inicio || ""),
-        fin:    req.body?.vigencia?.fin    ?? (cliente.fecha_expiracion || ""),
-      },
-
-      pagos: {
-        renta_mensual: req.body?.pagos?.renta_mensual ?? (cliente.pago_mensual ? `$${Number(cliente.pago_mensual).toLocaleString("es-MX")} MXN` : "$1,250.00 MXN"),
-        deposito:      req.body?.pagos?.deposito      ?? "$1,250.00 MXN",
-        banco:         "BBVA Bancomer",
-        cuenta:        "No. de Cuenta Bancaria 0124918231",
-        clabe:         "CLABE Interbancaria 0123 7500 1249 1823 17",
-      },
-
-      // ===== Anexos =====
-      anexo1: {
-        bodega_linea:     bodega ? `Mini Bodega número ${bodega.number}` : "",
-        superficie_linea: bodega ? `Superficie: ${bodega.area_m2 || 0} m²` : "",
-        fecha_hora:       req.body?.anexo1?.fecha_hora ?? "", // e.g. "27/07/2025 10:30 h"
-      },
-
-      anexo2: req.body?.anexo2 || [],  // [{fecha, nombre, tipo}, ...]
-
-      anexo3: {
-        bodega_linea: bodega ? `Mini Bodega número ${bodega.number}` : "",
-      },
-
-      anexo4: req.body?.anexo4 || [],  // [{no, cantidad, descripcion, valor}, ...]
-
-      anexo5: {
-        bodega: bodega ? (bodega.number || "") : "",
-        inicio: req.body?.vigencia?.inicio ?? (cliente.fecha_inicio || ""),
-        periodo: (req.body?.vigencia?.inicio && req.body?.vigencia?.fin)
-          ? `Del ${req.body.vigencia.inicio} al ${req.body.vigencia.fin}`
-          : (cliente.fecha_inicio && cliente.fecha_expiracion)
-            ? `Del ${cliente.fecha_inicio} al ${cliente.fecha_expiracion}`
-            : ""
-      },
-
-      anexo6: {
-        fecha: req.body?.anexo6?.fecha ?? "", // fecha de emisión del reglamento (si deseas estamparla)
-      },
-
-      firmas: {
-        arrendador:   "FRANCISCA RODRÍGUEZ DE ANDA",
-        arrendatario: req.body?.firmas?.arrendatario ?? (cliente.nombre || ""),
-      }
-    };
-
-    const filename = `contrato_${clienteId}.pdf`;
-    const outPath = path.join(OUT_DIR, filename);
-
-    await generarContratoPDF(data, TEMPLATE_PATH, outPath);
-
-    // Log tipo: contrato_generado (ya lo tenías) [oai_citation:3‡index.js](sediment://file_0000000002a46230b95b2838aef46740)
-    broadcast?.("log", {
+    const bodega = await query.get("SELECT * FROM bodegas WHERE id=?", [cliente.bodega_id]);
+    
+    broadcast("log", {
       type: "contrato_generado",
-      clienteId,
-      bodegaId: cliente.bodega_id || null,
+      clienteId: clienteId,
+      bodegaId: cliente.bodega_id,
       user: req.user?.email || "admin",
       timestamp: new Date().toISOString()
     });
 
-    // Devuelve ruta relativa para descargar
-    res.json({
-      ok: true,
-      file: filename,
-      download_url: `/contratos/${filename}`
+    res.json({ 
+      ok: true, 
+      mensaje: "Contrato generado exitosamente",
+      data: { cliente, bodega }
     });
   } catch (e) {
     console.error("Error generando contrato:", e);
     res.status(500).json({ error: "Error generando contrato" });
-  }
-});
-
-// ====== DESCARGA DIRECTA POR NOMBRE (si ya conoces el archivo) ======
-app.get("/api/admin/contratos/:file", authMiddleware, async (req, res) => {
-  try {
-    const file = req.params.file;
-    const full = path.join(OUT_DIR, file);
-    if (!fs.existsSync(full)) return res.status(404).json({ error: "No encontrado" });
-    res.download(full);
-  } catch (e) {
-    console.error("Error en descarga:", e);
-    res.status(500).json({ error: "Error descargando contrato" });
-  }
-});
-
-// ====== GRID DE CALIBRACIÓN (opcional, para clavar X/Y la primera vez) ======
-app.get("/api/admin/contratos/grid", authMiddleware, async (_req, res) => {
-  try {
-    if (!["admin", "superadmin", "editor"].includes(_req.user.rol)) {
-      return res.status(403).json({ error: "Permiso denegado" });
-    }
-    const gridName = "ContratoBase_grid.pdf";
-    const outPath = path.join(OUT_DIR, gridName);
-    await generarGridCalibracion(TEMPLATE_PATH, outPath, 20);
-    res.json({ ok: true, download_url: `/contratos/${gridName}` });
-  } catch (e) {
-    console.error("Error grid:", e);
-    res.status(500).json({ error: "Error generando grid" });
   }
 });
 

@@ -1,36 +1,73 @@
-// app/src/pages/admin/Contratos.tsx  (ejemplo)
-import { useState } from "react";
 
-export default function Contratos({ clienteId }: { clienteId: string }) {
-  const [url, setUrl] = useState<string>("");
 
-  async function handleGenerar() {
-    const r = await fetch(`/api/admin/clientes/${clienteId}/generar-contrato`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token") || ""}` },
-      body: JSON.stringify({
-        // Puedes sobreescribir datos si quieres (opcional):
-        // vigencia: { inicio: "2025-07-27", fin: "2026-07-26" },
-        // pagos: { renta_mensual: "$1,250.00 MXN", deposito: "$1,250.00 MXN" },
-        // anexo2: [{fecha: "2025-07-27", nombre: "Nombre Apellido", tipo: "temporal"}],
-        // anexo4: [{no:1, cantidad:1, descripcion:"Cajas plásticas", valor:"$500"}],
-      })
-    });
-    const data = await r.json();
-    if (data?.download_url) setUrl(data.download_url);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { useEffect, useState } from "react";
+import { adminContratosList, adminContratoReenviar } from "../../api";
+
+export default function AdminContratos() {
+  const [rows, setRows] = useState<any[]>([]);
+  useEffect(()=>{ load(); },[]);
+  async function load() {
+    const r = await adminContratosList();
+    setRows(r.data || []);
   }
-
   return (
-    <div className="p-4">
-      <button onClick={handleGenerar} className="px-3 py-2 rounded bg-black text-white">
-        Generar contrato PDF
-      </button>
-
-      {url && (
-        <a href={url} target="_blank" rel="noreferrer" className="ml-3 underline">
-          Descargar contrato
-        </a>
-      )}
+    <div>
+      <h1 className="text-2xl font-semibold mb-4">Contratos</h1>
+      <div className="rounded-xl border bg-white shadow">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 text-left">
+              <th className="p-2">ID</th>
+              <th className="p-2">Bodega</th>
+              <th className="p-2">Cliente</th>
+              <th className="p-2">Meses</th>
+              <th className="p-2">Idioma</th>
+              <th className="p-2">Fecha</th>
+              <th className="p-2">Reenvíos</th>
+              <th className="p-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.id} className="border-t">
+                <td className="p-2">{r.id}</td>
+                <td className="p-2">{r.bodega_id}</td>
+                <td className="p-2">{r.cliente_email || "-"}</td>
+                <td className="p-2">{r.meses}</td>
+                <td className="p-2">{r.idioma}</td>
+                <td className="p-2">{new Date(r.created_at).toLocaleString()}</td>
+                <td className="p-2">{r.resent_count ?? 0}</td>
+                <td className="p-2">
+                  <button
+                    className="px-3 py-1 rounded bg-gray-900 text-white"
+                    onClick={async ()=>{
+                      await adminContratoReenviar(r.id);
+                      load();
+                    }}
+                  >
+                    Reenviar copia
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {rows.length===0 && <tr><td className="p-4 text-center text-gray-500" colSpan={8}>Sin contratos</td></tr>}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
