@@ -37,34 +37,36 @@ async function seed() {
 
     console.log(`Insertando/actualizando ${records.length} bodegas...`);
 
-    // Insertar bodegas con UPSERT (sin tocar status ni price)
-    for (const r of records) {
-      const id = r.NUMBER.trim();
-      const coords = coordMap.get(id);
+// Insertar bodegas con UPSERT (sin tocar status ni price)
+let sortOrder = 0;
+for (const r of records) {
+  const id = r.NUMBER.trim();
+  const coords = coordMap.get(id);
 
-      await client.query(`
-        INSERT INTO bodegas (id, number, planta, medidas, area_m2, price, cualitativos, status, points)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        ON CONFLICT (id) DO UPDATE SET
-          number = EXCLUDED.number,
-          planta = EXCLUDED.planta,
-          medidas = EXCLUDED.medidas,
-          area_m2 = EXCLUDED.area_m2,
-          cualitativos = EXCLUDED.cualitativos,
-          points = EXCLUDED.points;
-          -- 👆 ya no actualiza price ni status
-      `, [
-        id,
-        id,
-        coords ? coords.planta : "",
-        r.MEDIDAS || "",
-        parseFloat(r.M2) || 0,
-        parseFloat((r["PRECIO RENTA"] || "").replace(/[^0-9.]/g, "")) || 0,
-        r.CUALITATIVOS || "",
-        "disponible", // solo se usa en la inserción inicial
-        coords ? JSON.stringify(coords.points) : "[]"
-      ]);
-    }
+  await client.query(`
+    INSERT INTO bodegas (id, number, planta, medidas, area_m2, price, cualitativos, status, points, sort_order)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    ON CONFLICT (id) DO UPDATE SET
+      number = EXCLUDED.number,
+      planta = EXCLUDED.planta,
+      medidas = EXCLUDED.medidas,
+      area_m2 = EXCLUDED.area_m2,
+      cualitativos = EXCLUDED.cualitativos,
+      points = EXCLUDED.points
+      -- 👆 ya no actualiza price, status NI sort_order
+  `, [
+    id,
+    id,
+    coords ? coords.planta : "",
+    r.MEDIDAS || "",
+    parseFloat(r.M2) || 0,
+    parseFloat((r["PRECIO RENTA"] || "").replace(/[^0-9.]/g, "")) || 0,
+    r.CUALITATIVOS || "",
+    "disponible",
+    coords ? JSON.stringify(coords.points) : "[]",
+    sortOrder++  // ✅ Agregar orden incremental
+  ]);
+}
 
     // Insertar admin con ON CONFLICT
     const hashed = bcrypt.hashSync("admin123", 10);
@@ -82,5 +84,7 @@ async function seed() {
     await client.end();
   }
 }
+
+
 
 seed().catch(console.error);
