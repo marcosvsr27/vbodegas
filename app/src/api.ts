@@ -1,4 +1,4 @@
-// src/api.ts
+// app/src/api.ts
 import type { Bodega, EstadisticasAdmin } from "./types";
 
 const BASE_URL = import.meta.env.VITE_API_URL; 
@@ -37,7 +37,6 @@ export async function loginEmail(email: string, password: string) {
   });
   const data = await res.json();
   
-  // Guardar token en localStorage
   if (data.ok && data.token) {
     localStorage.setItem("token", data.token);
   }
@@ -80,8 +79,6 @@ export async function logout() {
   await baseFetch(`/logout`, { method: "POST" });
 }
 
-// ... resto de las funciones (adminList, adminPatch, etc.)
-
 // -------------------- ADMIN --------------------
 export async function adminList(): Promise<Bodega[]> {
   const res = await baseFetch("/bodegas");
@@ -109,8 +106,6 @@ export async function adminStatsReal(): Promise<EstadisticasAdmin> {
   const res = await baseFetch(`/admin/stats-real`);
   return res.json();
 }
-
-
 
 export async function adminUpdateBodega(id: string, data: Partial<Bodega>) {
   const res = await baseFetch(`/admin/bodegas/${id}`, {
@@ -218,13 +213,21 @@ export function getToken() {
   return localStorage.getItem("token");
 }
 
-// --- ADMIN USERS ---
+// -------------------- ADMIN USERS --------------------
 export async function getAdmins() {
   const r = await baseFetch(`/admin/admins`, { method: "GET" });
   if (!r.ok) return [];
   return r.json();
 }
-export async function createAdmin(data: { nombre: string; email: string; password: string; telefono?: string; rol: string; permisos: string; }) {
+
+export async function createAdmin(data: { 
+  nombre: string; 
+  email: string; 
+  password: string; 
+  telefono?: string; 
+  rol: string; 
+  permisos: string; 
+}) {
   const r = await baseFetch(`/admin/admins`, {
     method: "POST",
     body: JSON.stringify(data),
@@ -232,7 +235,15 @@ export async function createAdmin(data: { nombre: string; email: string; passwor
   if (!r.ok) throw new Error("Error creando admin");
   return r.json();
 }
-export async function updateAdmin(id: string, data: Partial<{ nombre: string; email: string; telefono: string; rol: string; password: string; permisos: string }>) {
+
+export async function updateAdmin(id: string, data: Partial<{ 
+  nombre: string; 
+  email: string; 
+  telefono: string; 
+  rol: string; 
+  password: string; 
+  permisos: string 
+}>) {
   const r = await baseFetch(`/admin/admins/${id}`, {
     method: "PATCH",
     body: JSON.stringify(data),
@@ -240,18 +251,20 @@ export async function updateAdmin(id: string, data: Partial<{ nombre: string; em
   if (!r.ok) throw new Error("Error actualizando admin");
   return r.json();
 }
+
 export async function deleteAdmin(id: string) {
   const r = await baseFetch(`/admin/admins/${id}`, { method: "DELETE" });
   if (!r.ok) throw new Error("Error eliminando admin");
   return r.json();
 }
 
-// --- CLIENTES ---
+// -------------------- CLIENTES --------------------
 export async function getClientes() {
   const r = await baseFetch(`/admin/clientes`, { method: "GET" });
   if (!r.ok) return [];
   return r.json();
 }
+
 export async function createCliente(data: any) {
   const r = await baseFetch(`/admin/clientes`, {
     method: "POST",
@@ -260,6 +273,7 @@ export async function createCliente(data: any) {
   if (!r.ok) throw new Error("Error creando cliente");
   return r.json();
 }
+
 export async function updateCliente(id: string, data: any) {
   const r = await baseFetch(`/admin/clientes/${id}`, {
     method: "PATCH",
@@ -268,18 +282,20 @@ export async function updateCliente(id: string, data: any) {
   if (!r.ok) throw new Error("Error actualizando cliente");
   return r.json();
 }
+
 export async function deleteCliente(id: string) {
   const r = await baseFetch(`/admin/clientes/${id}`, { method: "DELETE" });
   if (!r.ok) throw new Error("Error eliminando cliente");
   return r.json();
 }
+
 export async function sendRecordatorio(id: string) {
   const r = await baseFetch(`/admin/clientes/${id}/recordatorio`, { method: "POST" });
   if (!r.ok) throw new Error("Error enviando recordatorio");
   return r.json();
 }
 
-// --- ASIGNAR CLIENTE A BODEGA ---
+// -------------------- ASIGNAR CLIENTE A BODEGA --------------------
 export async function assignClienteToBodega(clienteId: string, bodegaId: string) {
   const r = await baseFetch(`/admin/bodegas/${bodegaId}/assign`, {
     method: "POST",
@@ -289,11 +305,6 @@ export async function assignClienteToBodega(clienteId: string, bodegaId: string)
   return r.json();
 }
 
-// Agregar estas funciones a tu archivo app/src/api.ts
-
-// ... (resto del código existente)
-
-// Función para asignar cliente a bodega
 export async function asignarClienteBodega(clienteId: string, bodegaId: string) {
   const token = localStorage.getItem("token");
   const res = await fetch(`${API_URL}/admin/clientes/${clienteId}/asignar-bodega`, {
@@ -308,9 +319,7 @@ export async function asignarClienteBodega(clienteId: string, bodegaId: string) 
   return res.json();
 }
 
-// Agregar/actualizar estas funciones en app/src/api.ts
-
-// Generar contrato PDF y descargarlo
+// -------------------- CONTRATOS PDF --------------------
 export async function generarContratoPDF(clienteId: string) {
   const token = localStorage.getItem("token");
   
@@ -334,7 +343,6 @@ export async function generarContratoPDF(clienteId: string) {
     const a = document.createElement('a');
     a.href = url;
     
-    // Obtener el nombre del archivo desde los headers o usar uno por defecto
     const contentDisposition = res.headers.get('Content-Disposition');
     const filename = contentDisposition
       ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
@@ -353,14 +361,12 @@ export async function generarContratoPDF(clienteId: string) {
   }
 }
 
-// Listar contratos generados
 export async function listarContratosGenerados() {
   const r = await baseFetch(`/admin/contratos/archivos`, { method: "GET" });
   if (!r.ok) throw new Error("Error listando contratos");
   return r.json();
 }
 
-// Descargar un contrato específico
 export async function descargarContrato(filename: string) {
   const token = localStorage.getItem("token");
   
@@ -394,7 +400,6 @@ export async function descargarContrato(filename: string) {
   }
 }
 
-// Función para subir contrato escaneado
 export async function subirContratoEscaneado(clienteId: string, archivo: File) {
   const token = localStorage.getItem("token");
   const formData = new FormData();
@@ -412,7 +417,7 @@ export async function subirContratoEscaneado(clienteId: string, archivo: File) {
   return res.json();
 }
 
-// Función para exportar datos a Excel (opcional, puedes usar SheetJS directamente)
+// -------------------- EXPORTAR EXCEL --------------------
 export async function exportarDatosExcel(filtros: any) {
   const token = localStorage.getItem("token");
   const res = await fetch(`${API_URL}/admin/exportar-excel`, {
@@ -440,19 +445,38 @@ export async function exportarDatosExcel(filtros: any) {
   return res.json();
 }
 
-// --- SUBIR DOCUMENTOS ---
+// -------------------- SUBIR DOCUMENTOS --------------------
 export async function subirDocumentos(contratoId: string, ineFile: File, firmaFile: File) {
   const formData = new FormData();
   formData.append("contratoId", contratoId);
   formData.append("ine", ineFile);
   formData.append("firma", firmaFile);
   
-  const r = await baseFetch(`/clientes/documentos`, {
+  const token = localStorage.getItem("token");
+  const r = await fetch(`${API_URL}/clientes/documentos`, {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     body: formData,
-    headers: {} // No incluir Content-Type para FormData
+    credentials: "include",
   });
+  
   if (!r.ok) throw new Error("Error subiendo documentos");
   return r.json();
 }
 
+// -------------------- 🆕 IMPORTAR CSV --------------------
+export async function importarClientesCSV(csvData: string) {
+  const res = await baseFetch(`/admin/clientes/importar-csv`, {
+    method: "POST",
+    body: JSON.stringify({ csvData }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Error importando CSV");
+  }
+
+  return res.json();
+}

@@ -4,15 +4,15 @@
 export type EstadoBodega = "disponible" | "apartada" | "vendida";
 
 export interface Bodega {
-  id: string;                // Identificador interno (ej. "1")
-  number: string;            // Ej. "A-101" (visible al usuario)
-  planta: "baja" | "alta";   // Nivel de la bodega
-  medidas: string;           // Texto: "3.00 x 4.00"
-  metros: number | null;     // Área en m²
-  precio: number | null;     // Precio de renta
-  estado: EstadoBodega;      // Estado normalizado
-  points: [number, number][];// Polígono en formato [x,y]
-  cualitativos?: string;     // Extras opcionales
+  id: string;
+  number: string;
+  planta: "baja" | "alta";
+  medidas: string;
+  metros: number | null;
+  precio: number | null;
+  estado: EstadoBodega;
+  points: [number, number][];
+  cualitativos?: string;
   cliente?: string
   clienteId?: string | null;
   clienteNombre?: string | null;
@@ -23,9 +23,9 @@ export interface Usuario {
   id: string;
   nombre: string;
   email: string;
-  password?: string;     // Nunca expongas en frontend salvo registro/login
+  password?: string;
   rol: "cliente" | "admin";
-  token?: string;        // Guardar token de sesión
+  token?: string;
 }
 
 // ---- Contrato ----
@@ -33,10 +33,10 @@ export interface Contrato {
   id: string;
   clienteId: string;
   bodegaId: string;
-  fechaInicio: string;  // ISO string
+  fechaInicio: string;
   meses: number;
   idioma: "es" | "en";
-  urlPdf?: string;      // Enlace al contrato generado
+  urlPdf?: string;
 }
 
 // ---- API Responses ----
@@ -46,21 +46,18 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-// Lista de bodegas
 export type BodegaListResponse = ApiResponse<Bodega[]>;
 
-// Login / Registro
 export interface AuthResponse {
   token: string;
   usuario: Usuario;
 }
 
-// Contratos de un cliente
 export type ContratoListResponse = ApiResponse<Contrato[]>;
 
 // ---- Carrito ----
 export interface CarritoItem extends Bodega {
-  cantidad?: number; // para futuros upgrades
+  cantidad?: number;
 }
 
 // ---- Administradores ----
@@ -81,8 +78,8 @@ export interface ClienteContrato {
   bodegaId: string;
   number?: string;
   planta?: "baja" | "alta";
-  inicio?: string; // ISO
-  fin?: string;    // ISO
+  inicio?: string;
+  fin?: string;
   estado?: "activo" | "pendiente" | "vencido";
   pdfUrl?: string;
 }
@@ -106,6 +103,17 @@ export interface Cliente {
   fecha_registro?: string;
   estado_contrato?: "activo" | "proximo_vencer" | "vencido" | "sin_contrato";
   contratos?: ClienteContrato[];
+  
+  // 🆕 Campos adicionales del CSV
+  tipo_contrato?: string;
+  vencido_hoy?: number;
+  saldo?: number;
+  abonos?: number;
+  cargos?: number;
+  fecha_emision?: string;
+  descripcion?: string;
+  factura?: string;
+  comentarios?: string;
 }
 
 // ---- Contratos Generados ----
@@ -132,3 +140,11 @@ export interface EstadisticasAdmin {
   totalClientes: number;
 }
 
+// ---- Importación CSV ----
+export interface CSVImportResult {
+  exitosos: number;
+  errores: number;
+  duplicados: number;
+  actualizados: number;
+  detalles: string[];
+}

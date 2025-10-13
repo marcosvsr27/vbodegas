@@ -1096,6 +1096,219 @@ app.post("/api/setup-superadmin", async (req, res) => {
   }
 });
 
+
+// ========== ENDPOINT PARA GENERAR GRID DE CALIBRACIÓN ==========
+import { generarGridCalibracion } from "./utils/contratos.js";
+
+app.get("/api/admin/contratos/calibrar", authMiddleware, async (req, res) => {
+  try {
+    if (!["admin", "superadmin", "editor"].includes(req.user.rol)) {
+      return res.status(403).json({ error: "Permiso denegado" });
+    }
+
+    const templatePath = path.join(__dirname, "templates", "contrato_template.pdf");
+    const outputPath = path.join(CONTRATOS_DIR, `Calibracion_${Date.now()}.pdf`);
+
+    if (!fs.existsSync(templatePath)) {
+      return res.status(404).json({ error: "Template no encontrado" });
+    }
+
+    await generarGridCalibracion(templatePath, outputPath, 50); // Grid cada 50px
+    
+    res.download(outputPath, "Calibracion.pdf");
+  } catch (e) {
+    console.error("Error generando grid:", e);
+    res.status(500).json({ error: "Error generando grid: " + e.message });
+  }
+});
+
+// ========== 🆕 ENDPOINT PARA IMPORTAR CSV DE CLIENTES ==========
+// AGREGAR ESTO AL FINAL de server/index.js, JUSTO ANTES DE app.listen()
+// Asegúrate de que ya existe: import { parse } from "csv-parse/sync"; al inicio del archivo
+
+app.post("/api/admin/clientes/importar-csv", authMiddleware, async (req, res) => {
+  try {
+    if (!["admin", "superadmin", "editor"].includes(req.user.rol)) {
+      return res.status(403).json({ error: "Permiso denegado" });
+    }
+
+    const { csvData } = req.body;
+    
+    if (!csvData) {
+      return res.status(400).json({ error: "No se proporcionó datos CSV" });
+    }
+
+    // Parsear CSV
+    const records = parse(csvData, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+      bom: true,
+      relax_quotes: true
+    });
+
+    const resultado = {
+      exitosos: 0,
+      errores: 0,
+      duplicados: 0,
+      actualizados: 0,
+      detalles: []
+    };
+
+    // Procesar cada registro
+    for (const record of records) {
+      try {
+        // Normalizar nombres de columnas (el CSV puede tener nombres variados)
+        const propiedad = record.Propiedad || record.propiedad || "";
+        const cliente = record.Cliente || record.cliente || "";
+        const correo = (record.Correo || record.correo || record.email || "").trim().toLowerCase();
+        const telefono = record.Telefono || record.telefono || "";
+        
+        // Validaciones básicas
+        if (!cliente || !correo) {
+          resultado.errores++;
+          resultado.detalles.push(`⚠️ Fila sin nombre o email: ${JSON.stringify(record)}`);
+          continue;
+        }
+
+        // Separar nombre y apellidos
+        const nombreCompleto = cliente.split(' ');
+        const nombre = nombreCompleto[0] || "";
+        const apellidos = nombreCompleto.slice(1).join(' ') || "";
+
+        // Parsear fechas
+        const fechaInicio = record["F-Inicia"] || record["F.Inicia"] || record.fecha_inicio || "";
+        const fechaFin = record.Finaliza || record.finaliza || "";
+        const fechaEmision = record["F.Emision"] || record["F Emision"] || record.fecha_emision || "";
+
+        // Parsear valores numéricos
+        const vencidoHoy = parseFloat(String(record["Vencido Hoy"] || record.vencido_hoy || 0).replace(/[^0-9.-]/g, '')) || 0;
+        const saldo = parseFloat(String(record.Saldo || record.saldo || 0).replace(/[^0-9.-]/g, '')) || 0;
+        const abonos = parseFloat(String(record.Abonos || record.abonos || 0).replace(/[^0-9.-]/g, '')) || 0;
+        const cargos = parseFloat(String(record.Cargos || record.cargos || 0).replace(/[^0-9.-]/g, '')) || 0;
+
+        // Calcular duración en meses si hay fechas
+        let duracionMeses = 12; // valor por defecto
+        if (fechaInicio && fechaFin) {
+          const inicio = new Date(fechaInicio);
+          const fin = new Date(fechaFin);
+          if (!isNaN(inicio.getTime()) && !isNaN(fin.getTime())) {
+            duracionMeses = Math.round((fin - inicio) / (1000 * 60 * 60 * 24 * 30));
+          }
+        }
+
+        // Calcular pago mensual si hay cargos y duración
+        const pagoMensual = duracionMeses > 0 ? (cargos / duracionMeses) : 0;
+
+        // Buscar la bodega en la base de datos
+        let bodegaId = null;
+        let modulo = "";
+        let planta = "";
+        let medidas = "";
+        let metros = 0;
+
+        if (propiedad) {
+          const bodega = await query.get(
+            "SELECT * FROM bodegas WHERE id=? OR number=?", 
+            [propiedad.trim(), propiedad.trim()]
+          );
+          
+          if (bodega) {
+            bodegaId = bodega.id;
+            modulo = (bodega.number || "").split("-")[0] || "";
+            planta = bodega.planta || "";
+            medidas = bodega.medidas || "";
+            metros = bodega.area_m2 || 0;
+            
+            // Actualizar estado de bodega a apartada si no está vendida
+            if (bodega.status !== "vendida") {
+              await query.run("UPDATE bodegas SET status='apartada' WHERE id=?", [bodega.id]);
+            }
+          }
+        }
+
+        // Verificar si el cliente ya existe
+        const existente = await query.get("SELECT * FROM clientes WHERE email=?", [correo]);
+
+        if (existente) {
+          // Actualizar cliente existente
+          await query.run(`
+            UPDATE clientes SET
+              nombre=?, apellidos=?, telefono=?, bodega_id=?, modulo=?, planta=?,
+              medidas=?, metros=?, fecha_inicio=?, duracion_meses=?, fecha_expiracion=?,
+              pago_mensual=?, tipo_contrato=?, vencido_hoy=?, saldo=?, abonos=?,
+              cargos=?, fecha_emision=?, descripcion=?, factura=?, comentarios=?
+            WHERE email=?
+          `, [
+            nombre, apellidos, telefono, bodegaId, modulo, planta, medidas, metros,
+            fechaInicio || null, duracionMeses, fechaFin || null, pagoMensual,
+            record["Tipo Contrato"] || "Arrendamiento",
+            vencidoHoy, saldo, abonos, cargos, fechaEmision || null,
+            record.Descripcion || record.descripcion || "",
+            record.Factura || record.factura || "",
+            record["Comentarios:"] || record.Comentarios || record.comentarios || "",
+            correo
+          ]);
+          
+          resultado.actualizados++;
+          resultado.detalles.push(`🔄 Actualizado: ${nombre} ${apellidos} (${correo})`);
+        } else {
+          // Crear nuevo cliente
+          const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+          
+          await query.run(`
+            INSERT INTO clientes (
+              id, nombre, apellidos, email, telefono, bodega_id, modulo, planta,
+              medidas, metros, fecha_inicio, duracion_meses, fecha_expiracion,
+              pago_mensual, tipo_contrato, vencido_hoy, saldo, abonos, cargos,
+              fecha_emision, descripcion, factura, comentarios, estado_contrato
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          `, [
+            id, nombre, apellidos, correo, telefono, bodegaId, modulo, planta,
+            medidas, metros, fechaInicio || null, duracionMeses, fechaFin || null,
+            pagoMensual, record["Tipo Contrato"] || "Arrendamiento",
+            vencidoHoy, saldo, abonos, cargos, fechaEmision || null,
+            record.Descripcion || record.descripcion || "",
+            record.Factura || record.factura || "",
+            record["Comentarios:"] || record.Comentarios || record.comentarios || "",
+            "activo"
+          ]);
+          
+          resultado.exitosos++;
+          resultado.detalles.push(`✅ Creado: ${nombre} ${apellidos} (${correo})`);
+        }
+
+      } catch (error) {
+        resultado.errores++;
+        resultado.detalles.push(`❌ Error procesando: ${error.message}`);
+        console.error("Error procesando registro:", error);
+      }
+    }
+
+    // Broadcast del evento
+    broadcast("log", {
+      type: "importacion_csv",
+      resultado: resultado,
+      user: req.user?.email || "admin",
+      timestamp: new Date().toISOString()
+    });
+
+    res.json({ 
+      ok: true, 
+      resultado,
+      mensaje: `Importación completada: ${resultado.exitosos} creados, ${resultado.actualizados} actualizados, ${resultado.errores} errores`
+    });
+
+  } catch (e) {
+    console.error("Error en importación CSV:", e);
+    res.status(500).json({ 
+      error: "Error procesando CSV: " + e.message,
+      detalles: e.stack 
+    });
+  }
+});
+
+
 // -------------------- Server -----------------
 app.listen(PORT, () => {
   console.log(`✅ API lista en http://localhost:${PORT}`);

@@ -3,19 +3,22 @@ import fs from "fs";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 /**
- * COORDENADAS CALIBRADAS PARA EL CONTRATO
- * Estas coordenadas están basadas en el PDF original
- * IMPORTANTE: Ajustar según el template real usando el endpoint /api/admin/contratos/coords-grid
+ * ⚠️ IMPORTANTE: Coordenadas del PDF
+ * - Origen (0,0) está en ESQUINA INFERIOR IZQUIERDA
+ * - X aumenta hacia la derecha
+ * - Y aumenta hacia ARRIBA
+ * 
+ * Para encontrar coordenadas:
+ * 1. Llama /api/admin/contratos/calibrar
+ * 2. Descarga el PDF con la grilla
+ * 3. Identifica las coordenadas donde quieres el texto
  */
+
 export const COORDS = {
-  // === PORTADA / CUERPO PRINCIPAL (Página 1) ===
+  // === PORTADA (Página 1) ===
   arrendatario_nombre:     { page: 0, x: 150, y: 580, size: 10 },
   arrendatario_rep:        { page: 0, x: 150, y: 565, size: 10 },
-  arrendatario_constit:    { page: 0, x: 72,  y: 550, size: 9, maxWidth: 450 },
-  arrendatario_domicilio:  { page: 0, x: 72,  y: 520, size: 9, maxWidth: 450 },
-  arrendatario_contacto:   { page: 0, x: 72,  y: 490, size: 9, maxWidth: 450 },
-  bienes_declaracion:      { page: 0, x: 72,  y: 460, size: 9, maxWidth: 450 },
-
+  
   // === CLÁUSULAS (Página 2) ===
   bodega_ident:            { page: 1, x: 200, y: 680, size: 10 },
   bodega_superficie:       { page: 1, x: 200, y: 665, size: 10 },
@@ -24,7 +27,7 @@ export const COORDS = {
 
   // === PAGOS (Página 3) ===
   renta_mensual:           { page: 2, x: 200, y: 650, size: 10, bold: true },
-  deposito_monto:          { page: 3, x: 200, y: 580, size: 10 },
+  deposito_monto:          { page: 2, x: 200, y: 580, size: 10 },
   banco_nombre:            { page: 2, x: 150, y: 400, size: 9 },
   banco_cuenta:            { page: 2, x: 150, y: 385, size: 9 },
   banco_clabe:             { page: 2, x: 150, y: 370, size: 9 },
@@ -34,28 +37,19 @@ export const COORDS = {
   firma_arrendador:        { page: 5, x: 150, y: 150, size: 9 },
   firma_arrendatario:      { page: 5, x: 350, y: 150, size: 9 },
 
-  // === ANEXO 1 (Página 7) - INVENTARIO ENTREGA ===
+  // === ANEXO 1 (Página 7) ===
   anexo1_bodega:           { page: 6, x: 200, y: 650, size: 10 },
   anexo1_superficie:       { page: 6, x: 200, y: 635, size: 10 },
   anexo1_fecha_hora:       { page: 6, x: 200, y: 280, size: 9 },
 
-  // === ANEXO 2 (Página 8) - AUTORIZACIONES ===
+  // === ANEXO 2 (Página 8) ===
   anexo2_fecha1:           { page: 7, x: 90,  y: 450, size: 9 },
   anexo2_nombre1:          { page: 7, x: 180, y: 450, size: 9, maxWidth: 280 },
-  anexo2_tipo1:            { page: 7, x: 470, y: 450, size: 9 },
   
-  anexo2_fecha2:           { page: 7, x: 90,  y: 430, size: 9 },
-  anexo2_nombre2:          { page: 7, x: 180, y: 430, size: 9, maxWidth: 280 },
-  anexo2_tipo2:            { page: 7, x: 470, y: 430, size: 9 },
-  
-  anexo2_fecha3:           { page: 7, x: 90,  y: 410, size: 9 },
-  anexo2_nombre3:          { page: 7, x: 180, y: 410, size: 9, maxWidth: 280 },
-  anexo2_tipo3:            { page: 7, x: 470, y: 410, size: 9 },
-
-  // === ANEXO 3 (Página 9) - DATOS PERSONALES ===
+  // === ANEXO 3 (Página 9) ===
   anexo3_bodega:           { page: 8, x: 200, y: 600, size: 10 },
 
-  // === ANEXO 4 (Página 10) - INVENTARIO BIENES ===
+  // === ANEXO 4 (Página 10) ===
   anexo4_filas: [
     { page: 9, y: 480 },
     { page: 9, y: 460 },
@@ -73,20 +67,43 @@ export const COORDS = {
     val: 480 
   },
 
-  // === ANEXO 5 (Página 11) - PRENDA ===
+  // === ANEXO 5 (Página 11) ===
   anexo5_bodega:           { page: 10, x: 200, y: 600, size: 10 },
   anexo5_inicio:           { page: 10, x: 200, y: 580, size: 10 },
   anexo5_periodo:          { page: 10, x: 200, y: 560, size: 10 },
 
-  // === ANEXO 6 (Página 12) - REGLAMENTO ===
+  // === ANEXO 6 (Página 12) ===
   anexo6_fecha:            { page: 11, x: 200, y: 680, size: 10 },
 };
 
 /**
- * Dibuja texto con opciones avanzadas
+ * Dibuja un rectángulo blanco para "limpiar" el área antes de escribir
+ */
+function limpiarArea(page, x, y, width, height) {
+  page.drawRectangle({
+    x: x - 2,
+    y: y - 2,
+    width: width + 4,
+    height: height + 4,
+    color: rgb(1, 1, 1), // Blanco
+    borderWidth: 0,
+  });
+}
+
+/**
+ * Dibuja texto con opciones avanzadas y limpieza previa
  */
 function drawTextWithOptions(page, text, config) {
-  const { x, y, size = 10, font, color = rgb(0, 0, 0), align = "left", maxWidth, bold = false } = config;
+  const { 
+    x, 
+    y, 
+    size = 10, 
+    font, 
+    color = rgb(0, 0, 0), 
+    align = "left", 
+    maxWidth, 
+    limpiar = false // Nueva opción
+  } = config;
   
   if (!text) return;
   
@@ -94,11 +111,17 @@ function drawTextWithOptions(page, text, config) {
   let drawX = x;
   const textWidth = font.widthOfTextAtSize(textStr, size);
   
+  // Limpiar área si está habilitado
+  if (limpiar) {
+    const cleanWidth = maxWidth || textWidth;
+    limpiarArea(page, x, y, cleanWidth, size + 4);
+  }
+  
   // Alineación
   if (align === "center") drawX = x - textWidth / 2;
   if (align === "right") drawX = x - textWidth;
 
-  // Manejo de texto largo
+  // Manejo de texto largo con word wrap
   if (maxWidth && textWidth > maxWidth) {
     const words = textStr.split(" ");
     let line = "";
@@ -131,12 +154,10 @@ function drawTextWithOptions(page, text, config) {
  */
 export async function generarContratoPDF(data, templatePath, outPath) {
   try {
-    // Cargar el PDF template
     const bytes = fs.readFileSync(templatePath);
     const pdfDoc = await PDFDocument.load(bytes);
     const pages = pdfDoc.getPages();
     
-    // Cargar fuentes
     const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
     const fontBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
 
@@ -146,64 +167,77 @@ export async function generarContratoPDF(data, templatePath, outPath) {
     
     // Datos del Arrendatario
     if (data.arrendatario) {
-      drawTextWithOptions(getPage(0), data.arrendatario.nombre, { ...COORDS.arrendatario_nombre, font: fontBold });
-      drawTextWithOptions(getPage(0), data.arrendatario.representante, { ...COORDS.arrendatario_rep, font });
-      drawTextWithOptions(getPage(0), data.arrendatario.constitucion, { ...COORDS.arrendatario_constit, font });
-      drawTextWithOptions(getPage(0), data.arrendatario.domicilio, { ...COORDS.arrendatario_domicilio, font });
-      drawTextWithOptions(getPage(0), data.arrendatario.contacto, { ...COORDS.arrendatario_contacto, font });
-      drawTextWithOptions(getPage(0), data.arrendatario.bienes, { ...COORDS.bienes_declaracion, font });
+      drawTextWithOptions(getPage(0), data.arrendatario.nombre, { 
+        ...COORDS.arrendatario_nombre, 
+        font: fontBold,
+        limpiar: true 
+      });
+      drawTextWithOptions(getPage(0), data.arrendatario.representante, { 
+        ...COORDS.arrendatario_rep, 
+        font,
+        limpiar: true 
+      });
     }
 
     // Bodega
     if (data.bodega) {
-      drawTextWithOptions(getPage(1), data.bodega.ident, { ...COORDS.bodega_ident, font: fontBold });
-      drawTextWithOptions(getPage(1), data.bodega.superficie, { ...COORDS.bodega_superficie, font });
+      drawTextWithOptions(getPage(1), data.bodega.ident, { 
+        ...COORDS.bodega_ident, 
+        font: fontBold,
+        limpiar: true 
+      });
+      drawTextWithOptions(getPage(1), data.bodega.superficie, { 
+        ...COORDS.bodega_superficie, 
+        font,
+        limpiar: true 
+      });
     }
 
     // Vigencia
     if (data.vigencia) {
-      drawTextWithOptions(getPage(1), data.vigencia.inicio, { ...COORDS.vigencia_inicio, font: fontBold });
-      drawTextWithOptions(getPage(1), data.vigencia.fin, { ...COORDS.vigencia_fin, font: fontBold });
+      drawTextWithOptions(getPage(1), data.vigencia.inicio, { 
+        ...COORDS.vigencia_inicio, 
+        font: fontBold,
+        limpiar: true 
+      });
+      drawTextWithOptions(getPage(1), data.vigencia.fin, { 
+        ...COORDS.vigencia_fin, 
+        font: fontBold,
+        limpiar: true 
+      });
     }
 
     // Pagos
     if (data.pagos) {
-      drawTextWithOptions(getPage(2), data.pagos.renta_mensual, { ...COORDS.renta_mensual, font: fontBold });
-      drawTextWithOptions(getPage(3), data.pagos.deposito, { ...COORDS.deposito_monto, font: fontBold });
-      drawTextWithOptions(getPage(2), data.pagos.banco, { ...COORDS.banco_nombre, font });
-      drawTextWithOptions(getPage(2), data.pagos.cuenta, { ...COORDS.banco_cuenta, font });
-      drawTextWithOptions(getPage(2), data.pagos.clabe, { ...COORDS.banco_clabe, font });
-    }
-
-    // ============ ANEXO 1 - INVENTARIO ENTREGA ============
-    if (data.anexo1) {
-      drawTextWithOptions(getPage(6), data.anexo1.bodega_linea, { ...COORDS.anexo1_bodega, font: fontBold });
-      drawTextWithOptions(getPage(6), data.anexo1.superficie_linea, { ...COORDS.anexo1_superficie, font });
-      drawTextWithOptions(getPage(6), data.anexo1.fecha_hora, { ...COORDS.anexo1_fecha_hora, font });
-    }
-
-    // ============ ANEXO 2 - AUTORIZACIONES ============
-    if (data.anexo2 && Array.isArray(data.anexo2)) {
-      const coordsKeys = [
-        ['anexo2_fecha1', 'anexo2_nombre1', 'anexo2_tipo1'],
-        ['anexo2_fecha2', 'anexo2_nombre2', 'anexo2_tipo2'],
-        ['anexo2_fecha3', 'anexo2_nombre3', 'anexo2_tipo3'],
-      ];
-      
-      data.anexo2.slice(0, 3).forEach((row, i) => {
-        const [kF, kN, kT] = coordsKeys[i];
-        if (row.fecha) drawTextWithOptions(getPage(7), row.fecha, { ...COORDS[kF], font });
-        if (row.nombre) drawTextWithOptions(getPage(7), row.nombre, { ...COORDS[kN], font });
-        if (row.tipo) drawTextWithOptions(getPage(7), row.tipo, { ...COORDS[kT], font });
+      drawTextWithOptions(getPage(2), data.pagos.renta_mensual, { 
+        ...COORDS.renta_mensual, 
+        font: fontBold,
+        limpiar: true 
+      });
+      drawTextWithOptions(getPage(2), data.pagos.deposito, { 
+        ...COORDS.deposito_monto, 
+        font: fontBold,
+        limpiar: true 
       });
     }
 
-    // ============ ANEXO 3 - DATOS PERSONALES ============
-    if (data.anexo3) {
-      drawTextWithOptions(getPage(8), data.anexo3.bodega_linea, { ...COORDS.anexo3_bodega, font: fontBold });
+    // ============ ANEXOS ============
+    
+    // ANEXO 1
+    if (data.anexo1) {
+      drawTextWithOptions(getPage(6), data.anexo1.bodega_linea, { 
+        ...COORDS.anexo1_bodega, 
+        font: fontBold,
+        limpiar: true 
+      });
+      drawTextWithOptions(getPage(6), data.anexo1.fecha_hora, { 
+        ...COORDS.anexo1_fecha_hora, 
+        font,
+        limpiar: true 
+      });
     }
 
-    // ============ ANEXO 4 - INVENTARIO BIENES ============
+    // ANEXO 4 - Inventario
     if (data.anexo4 && Array.isArray(data.anexo4)) {
       const maxRows = Math.min(data.anexo4.length, COORDS.anexo4_filas.length);
       
@@ -212,33 +246,53 @@ export async function generarContratoPDF(data, templatePath, outPath) {
         const row = COORDS.anexo4_filas[i];
         const page = getPage(row.page);
         
-        drawTextWithOptions(page, item.no || (i + 1), { x: COORDS.anexo4_cols.no, y: row.y, size: 9, font });
-        drawTextWithOptions(page, item.cantidad || "", { x: COORDS.anexo4_cols.cant, y: row.y, size: 9, font });
-        drawTextWithOptions(page, item.descripcion || "", { x: COORDS.anexo4_cols.desc, y: row.y, size: 9, font, maxWidth: 260 });
-        drawTextWithOptions(page, item.valor || "", { x: COORDS.anexo4_cols.val, y: row.y, size: 9, font });
+        drawTextWithOptions(page, item.no || (i + 1), { 
+          x: COORDS.anexo4_cols.no, 
+          y: row.y, 
+          size: 9, 
+          font 
+        });
+        drawTextWithOptions(page, item.cantidad || "", { 
+          x: COORDS.anexo4_cols.cant, 
+          y: row.y, 
+          size: 9, 
+          font 
+        });
+        drawTextWithOptions(page, item.descripcion || "", { 
+          x: COORDS.anexo4_cols.desc, 
+          y: row.y, 
+          size: 9, 
+          font, 
+          maxWidth: 260 
+        });
+        drawTextWithOptions(page, item.valor || "", { 
+          x: COORDS.anexo4_cols.val, 
+          y: row.y, 
+          size: 9, 
+          font 
+        });
       }
-    }
-
-    // ============ ANEXO 5 - PRENDA ============
-    if (data.anexo5) {
-      drawTextWithOptions(getPage(10), data.anexo5.bodega, { ...COORDS.anexo5_bodega, font: fontBold });
-      drawTextWithOptions(getPage(10), data.anexo5.inicio, { ...COORDS.anexo5_inicio, font });
-      drawTextWithOptions(getPage(10), data.anexo5.periodo, { ...COORDS.anexo5_periodo, font });
-    }
-
-    // ============ ANEXO 6 - REGLAMENTO ============
-    if (data.anexo6) {
-      drawTextWithOptions(getPage(11), data.anexo6.fecha, { ...COORDS.anexo6_fecha, font });
     }
 
     // ============ FIRMAS ============
     if (data.firmas) {
-      drawTextWithOptions(getPage(5), data.vigencia?.inicio || "", { ...COORDS.firma_fecha, font });
-      drawTextWithOptions(getPage(5), data.firmas.arrendador, { ...COORDS.firma_arrendador, font });
-      drawTextWithOptions(getPage(5), data.firmas.arrendatario, { ...COORDS.firma_arrendatario, font });
+      drawTextWithOptions(getPage(5), data.vigencia?.inicio || "", { 
+        ...COORDS.firma_fecha, 
+        font,
+        limpiar: true 
+      });
+      drawTextWithOptions(getPage(5), data.firmas.arrendador, { 
+        ...COORDS.firma_arrendador, 
+        font,
+        limpiar: true 
+      });
+      drawTextWithOptions(getPage(5), data.firmas.arrendatario, { 
+        ...COORDS.firma_arrendatario, 
+        font,
+        limpiar: true 
+      });
     }
 
-    // Guardar el PDF generado
     const pdfBytes = await pdfDoc.save();
     fs.writeFileSync(outPath, pdfBytes);
     
@@ -254,42 +308,65 @@ export async function generarContratoPDF(data, templatePath, outPath) {
 /**
  * Genera un PDF con grilla de coordenadas para calibración
  */
-export async function generarGridCalibracion(templatePath, outPath, step = 20) {
+export async function generarGridCalibracion(templatePath, outPath, step = 50) {
   const bytes = fs.readFileSync(templatePath);
   const pdfDoc = await PDFDocument.load(bytes);
   const pages = pdfDoc.getPages();
   const font = await pdfDoc.embedFont(StandardFonts.Courier);
 
-  pages.forEach((p, pageIndex) => {
-    const { width, height } = p.getSize();
+  pages.forEach((page, pageIndex) => {
+    const { width, height } = page.getSize();
     
     // Líneas verticales y números X
     for (let x = 0; x < width; x += step) {
-      p.drawText(String(x), { 
-        x, 
+      page.drawLine({
+        start: { x, y: 0 },
+        end: { x, y: height },
+        thickness: 0.5,
+        color: rgb(0.9, 0.9, 0.9),
+      });
+      
+      page.drawText(String(Math.round(x)), { 
+        x: x + 2, 
         y: height - 15, 
-        size: 6, 
+        size: 8, 
         font, 
-        color: rgb(0.7, 0, 0) 
+        color: rgb(1, 0, 0) 
       });
     }
     
     // Líneas horizontales y números Y
     for (let y = 0; y < height; y += step) {
-      p.drawText(String(y), { 
+      page.drawLine({
+        start: { x: 0, y },
+        end: { x: width, y },
+        thickness: 0.5,
+        color: rgb(0.9, 0.9, 0.9),
+      });
+      
+      page.drawText(String(Math.round(y)), { 
         x: 5, 
-        y, 
-        size: 6, 
+        y: y + 2, 
+        size: 8, 
         font, 
-        color: rgb(0, 0, 0.7) 
+        color: rgb(0, 0, 1) 
       });
     }
     
     // Número de página
-    p.drawText(`Página ${pageIndex + 1}`, {
-      x: width / 2 - 30,
+    page.drawText(`Página ${pageIndex + 1}`, {
+      x: width / 2 - 40,
       y: height - 30,
-      size: 12,
+      size: 14,
+      font,
+      color: rgb(0, 0, 0)
+    });
+    
+    // Leyenda
+    page.drawText(`ROJO = Coordenada X | AZUL = Coordenada Y | Grid cada ${step}px`, {
+      x: 20,
+      y: 20,
+      size: 10,
       font,
       color: rgb(0, 0, 0)
     });

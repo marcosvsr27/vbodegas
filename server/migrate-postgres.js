@@ -12,7 +12,7 @@ async function migrate() {
 
   try {
     await client.connect();
-    console.log("📄 Conectado a PostgreSQL. Migrando...");
+    console.log("🔄 Conectado a PostgreSQL. Migrando...\n");
 
     // TABLA: administradores
     await client.query(`
@@ -45,7 +45,7 @@ async function migrate() {
     `);
     console.log("✓ Tabla bodegas");
 
-    // Agregar sort_order si no existe (para bases existentes)
+    // Agregar sort_order si no existe
     try {
       await client.query(`
         ALTER TABLE bodegas 
@@ -63,7 +63,7 @@ async function migrate() {
     `);
     console.log("✓ Índice creado");
 
-    // TABLA: clientes
+    // TABLA: clientes (con TODOS los campos)
     await client.query(`
       CREATE TABLE IF NOT EXISTS clientes (
         id VARCHAR(255) PRIMARY KEY,
@@ -84,10 +84,42 @@ async function migrate() {
         fecha_expiracion DATE,
         pago_mensual DECIMAL(10,2) DEFAULT 0,
         estado_contrato VARCHAR(50) DEFAULT 'activo',
-        permisos VARCHAR(50)
+        permisos VARCHAR(50),
+        tipo_contrato VARCHAR(100),
+        vencido_hoy DECIMAL(10,2),
+        saldo DECIMAL(10,2),
+        abonos DECIMAL(10,2),
+        cargos DECIMAL(10,2),
+        fecha_emision DATE,
+        descripcion TEXT,
+        factura VARCHAR(50),
+        comentarios TEXT,
+        fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
     console.log("✓ Tabla clientes");
+
+    // Agregar columnas nuevas si la tabla ya existía
+    const columnasNuevas = [
+      { nombre: 'tipo_contrato', tipo: 'VARCHAR(100)' },
+      { nombre: 'vencido_hoy', tipo: 'DECIMAL(10,2)' },
+      { nombre: 'saldo', tipo: 'DECIMAL(10,2)' },
+      { nombre: 'abonos', tipo: 'DECIMAL(10,2)' },
+      { nombre: 'cargos', tipo: 'DECIMAL(10,2)' },
+      { nombre: 'fecha_emision', tipo: 'DATE' },
+      { nombre: 'descripcion', tipo: 'TEXT' },
+      { nombre: 'factura', tipo: 'VARCHAR(50)' },
+      { nombre: 'comentarios', tipo: 'TEXT' }
+    ];
+
+    for (const col of columnasNuevas) {
+      try {
+        await client.query(`ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ${col.nombre} ${col.tipo}`);
+        console.log(`✓ Columna ${col.nombre} verificada`);
+      } catch (e) {
+        console.log(`ℹ Columna ${col.nombre} ya existe`);
+      }
+    }
 
     // INSERTAR ADMIN POR DEFECTO
     const adminCheck = await client.query(
@@ -116,6 +148,11 @@ async function migrate() {
     }
 
     console.log("\n✅ Migración completada exitosamente");
+    console.log("\n📋 Próximos pasos:");
+    console.log("  1. Ejecuta el servidor en producción");
+    console.log("  2. Ve a Admin Panel → Clientes");
+    console.log("  3. Usa el botón 'Importar CSV'\n");
+
   } catch (error) {
     console.error("❌ Error en migración:", error);
     throw error;

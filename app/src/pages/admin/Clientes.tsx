@@ -12,6 +12,7 @@ import {
 import type { Cliente, Bodega } from "../../types";
 import dayjs from "dayjs";
 import { Link } from "react-router-dom";
+import Papa from 'papaparse';
 
 type SortOption = "alfabetico" | "fecha_contrato" | "vencimiento" | "fecha_registro";
 
@@ -36,7 +37,6 @@ function getColorFila(estado: string) {
     default: return "bg-gray-50 border-gray-200";
   }
 }
-
 
 // Función para abrir WhatsApp con mensaje predeterminado
 function abrirWhatsApp(telefono: string, mensaje: string) {
@@ -70,6 +70,13 @@ export default function Clientes() {
   const [editModal, setEditModal] = useState<Cliente | null>(null);
   const [recordatorioModal, setRecordatorioModal] = useState<Cliente | null>(null);
   const [contratoModal, setContratoModal] = useState<Cliente | null>(null);
+  
+  // 🆕 Estados para importación CSV
+  const [importModal, setImportModal] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvPreview, setCsvPreview] = useState<any[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<any>(null);
 
   // Form para crear cliente
   const [nuevoCliente, setNuevoCliente] = useState({
@@ -207,13 +214,103 @@ export default function Clientes() {
     }
   }
 
+  // 🆕 Función para manejar selección de archivo CSV
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.csv')) {
+      setErr("Por favor selecciona un archivo CSV");
+      return;
+    }
+    
+    setCsvFile(file);
+    
+    // Vista previa de las primeras 5 filas
+    Papa.parse(file, {
+      header: true,
+      preview: 5,
+      complete: (results) => {
+        setCsvPreview(results.data);
+      },
+      error: (error) => {
+        setErr("Error leyendo archivo: " + error.message);
+      }
+    });
+  }
+
+  // 🆕 Función para procesar el CSV completo
+  async function procesarCSV() {
+    if (!csvFile) return;
+    
+    setImporting(true);
+    setErr("");
+    setImportResult(null);
+    
+    try {
+      // Leer archivo completo
+      const text = await csvFile.text();
+      
+      // Enviar al servidor
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/admin/clientes/importar-csv`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        credentials: 'include',
+        body: JSON.stringify({ csvData: text })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Error importando CSV');
+      }
+      
+      setImportResult(data.resultado);
+      
+      // Recargar lista de clientes
+      await load();
+      
+      // Limpiar después de 3 segundos si fue exitoso
+      if (data.resultado.errores === 0) {
+        setTimeout(() => {
+          setImportModal(false);
+          setCsvFile(null);
+          setCsvPreview([]);
+          setImportResult(null);
+        }, 3000);
+      }
+      
+    } catch (error: any) {
+      setErr(error.message || "Error importando CSV");
+    } finally {
+      setImporting(false);
+    }
+  }
+
   const bodegaSeleccionada = bodegas.find(b => b.id === nuevoCliente.bodega_id);
 
+  // CONTINÚA EN PARTE 2...
+  // CONTINUACIÓN DE Clientes.tsx - PARTE 2/2
+  
   return (
     <div className="p-6 space-y-6">
+      {/* Header con botón de importación */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Base de Datos de Clientes</h1>
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => setImportModal(true)}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2"
+            title="Importar clientes desde CSV"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            Importar CSV
+          </button>
           <button
             onClick={() => setCreateModal(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -622,9 +719,32 @@ export default function Clientes() {
           onClose={() => setRecordatorioModal(null)}
         />
       )}
+
+      {/* 🆕 Modal de Importación CSV */}
+      <ImportCSVModal
+        isOpen={importModal}
+        onClose={() => {
+          setImportModal(false);
+          setCsvFile(null);
+          setCsvPreview([]);
+          setImportResult(null);
+          setErr("");
+        }}
+        csvFile={csvFile}
+        csvPreview={csvPreview}
+        importing={importing}
+        importResult={importResult}
+        onFileSelect={handleFileSelect}
+        onProcess={procesarCSV}
+        error={err}
+      />
     </div>
   );
 }
+
+// CONTINÚA CON LOS COMPONENTES...
+// Ver siguiente artefacto para los componentes modales
+// AGREGAR ESTOS COMPONENTES AL FINAL DE Clientes.tsx
 
 // Componente Modal de Edición
 function EditClienteModal({ 
@@ -772,8 +892,7 @@ function EditClienteModal({
   );
 }
 
-// Reemplazar el componente ContratoModal en Clientes.tsx
-
+// Modal de Contrato
 function ContratoModal({ cliente, bodega, onClose }: { cliente: Cliente; bodega?: Bodega; onClose: () => void }) {
   const [contratoFile, setContratoFile] = useState<File | null>(null);
   const [generando, setGenerando] = useState(false);
@@ -810,7 +929,6 @@ function ContratoModal({ cliente, bodega, onClose }: { cliente: Cliente; bodega?
       setGenerando(true);
       setError("");
       
-      // ✅ Llamar a la función de la API (solo necesita el ID)
       await generarContratoPDFAPI(cliente.id);
       
       setSuccess("Contrato generado y descargado exitosamente");
@@ -943,7 +1061,6 @@ function ContratoModal({ cliente, bodega, onClose }: { cliente: Cliente; bodega?
   );
 }
 
-
 // Modal de Recordatorio
 function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: () => void }) {
   const [tipoRecordatorio, setTipoRecordatorio] = useState<"pago" | "renovacion">("pago");
@@ -1048,6 +1165,235 @@ function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: ()
             Enviar Recordatorio
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// 🆕 Modal de Importación CSV
+function ImportCSVModal({ 
+  isOpen, 
+  onClose, 
+  csvFile, 
+  csvPreview, 
+  importing, 
+  importResult, 
+  onFileSelect, 
+  onProcess,
+  error 
+}: { 
+  isOpen: boolean;
+  onClose: () => void;
+  csvFile: File | null;
+  csvPreview: any[];
+  importing: boolean;
+  importResult: any;
+  onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onProcess: () => void;
+  error: string;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 grid place-items-center p-4 z-50">
+      <div className="bg-white rounded-xl border w-full max-w-4xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-semibold">📊 Importar Clientes desde CSV</h3>
+            <p className="text-sm text-gray-500 mt-1">Sube el archivo infobodegas.csv para actualizar la base de datos</p>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-black text-2xl">✕</button>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            ⚠️ {error}
+          </div>
+        )}
+
+        {/* File Upload Area */}
+        {!csvFile && !importResult && (
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </div>
+              <div>
+                <label className="cursor-pointer">
+                  <span className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-block">
+                    Seleccionar Archivo CSV
+                  </span>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={onFileSelect}
+                    className="hidden"
+                  />
+                </label>
+                <p className="text-sm text-gray-500 mt-2">o arrastra el archivo aquí</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Preview */}
+        {csvFile && csvPreview.length > 0 && !importResult && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <div className="flex-1">
+                  <h4 className="font-medium text-gray-900">{csvFile.name}</h4>
+                  <p className="text-sm text-gray-600">{(csvFile.size / 1024).toFixed(2)} KB</p>
+                </div>
+                <button 
+                  onClick={() => { onFileSelect({ target: { files: null } } as any); }}
+                  className="text-red-600 hover:text-red-800"
+                >
+                  Cambiar
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-medium mb-2">Vista Previa (primeras 5 filas):</h4>
+              <div className="overflow-x-auto border rounded-lg">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {Object.keys(csvPreview[0] || {}).map(key => (
+                        <th key={key} className="px-4 py-2 text-left font-medium text-gray-700 border-b">
+                          {key}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {csvPreview.map((row, i) => (
+                      <tr key={i} className="border-b hover:bg-gray-50">
+                        {Object.values(row).map((val: any, j) => (
+                          <td key={j} className="px-4 py-2 text-gray-600">
+                            {String(val).substring(0, 50)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex gap-3">
+                <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="text-sm text-amber-800">
+                  <p className="font-medium mb-1">Antes de continuar:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Los clientes con emails existentes serán <strong>actualizados</strong></li>
+                    <li>Los clientes nuevos serán <strong>creados</strong></li>
+                    <li>Las bodegas se asignarán automáticamente según la columna "Propiedad"</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={onClose}
+                disabled={importing}
+                className="px-6 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={onProcess}
+                disabled={importing}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {importing ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Importar Clientes
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Results */}
+        {importResult && (
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h4 className="text-xl font-semibold text-green-900 mb-2">¡Importación Completada!</h4>
+              
+              <div className="grid grid-cols-3 gap-4 mt-6">
+                <div className="bg-white rounded-lg p-4">
+                  <div className="text-3xl font-bold text-green-600">{importResult.exitosos}</div>
+                  <div className="text-sm text-gray-600">Creados</div>
+                </div>
+                <div className="bg-white rounded-lg p-4">
+                  <div className="text-3xl font-bold text-blue-600">{importResult.actualizados || 0}</div>
+                  <div className="text-sm text-gray-600">Actualizados</div>
+                </div>
+                <div className="bg-white rounded-lg p-4">
+                  <div className="text-3xl font-bold text-red-600">{importResult.errores}</div>
+                  <div className="text-sm text-gray-600">Errores</div>
+                </div>
+              </div>
+            </div>
+
+            {importResult.detalles && importResult.detalles.length > 0 && (
+              <div className="bg-gray-50 border rounded-lg p-4 max-h-60 overflow-y-auto">
+                <h5 className="font-medium mb-2">Detalles de la importación:</h5>
+                <div className="space-y-1 text-sm font-mono">
+                  {importResult.detalles.map((detalle: string, i: number) => (
+                    <div key={i} className={`
+                      ${detalle.startsWith('✅') ? 'text-green-700' : ''}
+                      ${detalle.startsWith('🔄') ? 'text-blue-700' : ''}
+                      ${detalle.startsWith('❌') ? 'text-red-700' : ''}
+                      ${detalle.startsWith('⚠️') ? 'text-amber-700' : ''}
+                    `}>
+                      {detalle}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-center">
+              <button
+                onClick={onClose}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
