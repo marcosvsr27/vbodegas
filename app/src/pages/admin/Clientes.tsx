@@ -1304,9 +1304,13 @@ function ImportCSVModal({
 }
 
 // ========== COMPONENTE DE DETALLE MEJORADO ==========
+// ========== REEMPLAZA EL ClienteDetailModal COMPLETO ==========
+// Busca la función ClienteDetailModal en tu archivo y reemplázala con este código
+
 function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<'general' | 'contrato' | 'pagos' | 'documentos'>('general');
 
+  // Cálculos para gráficos
   const totalContrato = cliente.cargos || 0;
   const pagado = cliente.abonos || 0;
   const porVencer = cliente.saldo || 0;
@@ -1316,6 +1320,7 @@ function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: (
   const porcentajeVencido = totalContrato > 0 ? (vencido / totalContrato) * 100 : 0;
   const porcentajePorVencer = totalContrato > 0 ? (porVencer / totalContrato) * 100 : 0;
 
+  // Progreso del tiempo del contrato
   const diasTranscurridos = cliente.fecha_inicio && cliente.fecha_expiracion ? 
     dayjs().diff(dayjs(cliente.fecha_inicio), 'day') : 0;
   const diasTotales = cliente.fecha_inicio && cliente.fecha_expiracion ?
@@ -1328,6 +1333,7 @@ function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: (
   return (
     <div className="fixed inset-0 bg-black/50 grid place-items-center p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-2xl w-full max-w-6xl my-8 shadow-2xl">
+        {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 rounded-t-2xl">
           <div className="flex items-start justify-between">
             <div>
@@ -1349,6 +1355,7 @@ function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: (
             </button>
           </div>
 
+          {/* Tabs */}
           <div className="flex gap-2 mt-6 border-t border-white/20 pt-4">
             {[
               { id: 'general' as const, label: 'General', icon: '👤' },
@@ -1372,29 +1379,306 @@ function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: (
           </div>
         </div>
 
+        {/* Content */}
         <div className="p-6 max-h-[70vh] overflow-y-auto">
+          {/* TAB: GENERAL */}
           {activeTab === 'general' && (
-            <div className="text-center py-8 text-gray-500">
-              <p>Contenido de la pestaña General</p>
+            <div className="space-y-6">
+              {/* Info Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Datos Personales */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
+                  <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-blue-900">
+                    <span className="text-2xl">👤</span>
+                    Datos Personales
+                  </h3>
+                  <div className="space-y-3">
+                    <InfoRow label="Nombre Completo" value={`${cliente.nombre} ${cliente.apellidos || ''}`} />
+                    <InfoRow label="Email" value={cliente.email} icon="📧" />
+                    <InfoRow label="Teléfono" value={cliente.telefono || 'No registrado'} icon="📱" />
+                    <InfoRow label="Régimen Fiscal" value={cliente.regimen_fiscal || 'No especificado'} icon="🏢" />
+                    <InfoRow 
+                      label="Fecha de Registro" 
+                      value={cliente.fecha_registro ? dayjs(cliente.fecha_registro).format('DD/MM/YYYY') : 'No disponible'} 
+                      icon="📅"
+                    />
+                  </div>
+                </div>
+
+                {/* Bodega Asignada */}
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 border border-purple-200">
+                  <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-purple-900">
+                    <span className="text-2xl">🏪</span>
+                    Bodega Asignada
+                  </h3>
+                  {cliente.bodega_id ? (
+                    <div className="space-y-3">
+                      <div className="bg-white rounded-lg p-3 text-center">
+                        <div className="text-3xl font-bold text-purple-600">{cliente.bodega_id}</div>
+                        <div className="text-sm text-gray-600">Número de Bodega</div>
+                      </div>
+                      <InfoRow label="Módulo" value={cliente.modulo || 'N/A'} />
+                      <InfoRow label="Planta" value={cliente.planta || 'N/A'} />
+                      <InfoRow label="Medidas" value={cliente.medidas || 'N/A'} />
+                      <InfoRow label="Superficie" value={`${cliente.metros || 0} m²`} />
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="text-4xl mb-2">📭</div>
+                      <p>Sin bodega asignada</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Comentarios y Descripción */}
+              {(cliente.comentarios || cliente.descripcion) && (
+                <div className="bg-amber-50 rounded-xl p-5 border border-amber-200">
+                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2 text-amber-900">
+                    <span className="text-2xl">📝</span>
+                    Notas y Observaciones
+                  </h3>
+                  {cliente.descripcion && (
+                    <div className="mb-3">
+                      <p className="text-sm font-medium text-gray-700 mb-1">Descripción:</p>
+                      <p className="text-gray-600">{cliente.descripcion}</p>
+                    </div>
+                  )}
+                  {cliente.comentarios && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-1">Comentarios:</p>
+                      <p className="text-gray-600">{cliente.comentarios}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
+
+          {/* TAB: CONTRATO */}
           {activeTab === 'contrato' && (
-            <div className="text-center py-8 text-gray-500">
-              <p>Contenido de la pestaña Contrato</p>
+            <div className="space-y-6">
+              {/* Timeline del Contrato */}
+              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
+                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-green-900">
+                  <span className="text-2xl">⏱️</span>
+                  Línea de Tiempo del Contrato
+                </h3>
+                
+                {cliente.fecha_inicio && cliente.fecha_expiracion ? (
+                  <>
+                    <div className="relative mb-6">
+                      <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all"
+                          style={{ width: `${Math.min(porcentajeTiempo, 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-2 text-sm">
+                        <span className="text-gray-600">Inicio</span>
+                        <span className="font-semibold text-green-700">
+                          {porcentajeTiempo.toFixed(1)}% transcurrido
+                        </span>
+                        <span className="text-gray-600">Fin</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-white rounded-lg p-4 text-center">
+                        <div className="text-2xl mb-1">📅</div>
+                        <div className="text-sm text-gray-600 mb-1">Fecha Inicio</div>
+                        <div className="font-semibold">{dayjs(cliente.fecha_inicio).format('DD/MM/YYYY')}</div>
+                      </div>
+                      
+                      <div className="bg-white rounded-lg p-4 text-center border-2 border-green-500">
+                        <div className="text-2xl mb-1">⏳</div>
+                        <div className="text-sm text-gray-600 mb-1">Días Restantes</div>
+                        <div className="font-bold text-2xl text-green-600">
+                          {diasRestantes !== null ? diasRestantes : '-'}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-white rounded-lg p-4 text-center">
+                        <div className="text-2xl mb-1">🏁</div>
+                        <div className="text-sm text-gray-600 mb-1">Fecha Fin</div>
+                        <div className="font-semibold">{dayjs(cliente.fecha_expiracion).format('DD/MM/YYYY')}</div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-4xl mb-2">📄</div>
+                    <p>Sin contrato activo</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Detalles del Contrato */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white rounded-xl p-5 border-2 border-gray-200">
+                  <h4 className="font-semibold mb-4 text-gray-900">Detalles del Contrato</h4>
+                  <div className="space-y-3">
+                    <InfoRow label="Tipo de Contrato" value={cliente.tipo_contrato || 'Arrendamiento'} />
+                    <InfoRow label="Duración" value={`${cliente.duracion_meses || 0} meses`} />
+                    <InfoRow 
+                      label="Fecha de Emisión" 
+                      value={cliente.fecha_emision ? dayjs(cliente.fecha_emision).format('DD/MM/YYYY') : 'No registrada'} 
+                    />
+                    <InfoRow 
+                      label="Pago Mensual" 
+                      value={`$${(cliente.pago_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`}
+                      highlight
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-5 border-2 border-gray-200">
+                  <h4 className="font-semibold mb-4 text-gray-900">Facturación</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Factura Solicitada:</span>
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        cliente.factura === 'Si' || cliente.factura === 'Sí' 
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {cliente.factura || 'No especificado'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
+
+          {/* TAB: PAGOS */}
           {activeTab === 'pagos' && (
-            <div className="text-center py-8 text-gray-500">
-              <p>Contenido de la pestaña Pagos</p>
+            <div className="space-y-6">
+              {/* Resumen Visual de Pagos */}
+              <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-6 border border-indigo-200">
+                <h3 className="font-semibold text-lg mb-6 flex items-center gap-2 text-indigo-900">
+                  <span className="text-2xl">💰</span>
+                  Estado de Pagos
+                </h3>
+
+                {/* Gráficos Circulares */}
+                <div className="grid grid-cols-3 gap-6 mb-6">
+                  <CircularProgress
+                    value={porcentajePagado}
+                    label="Pagado"
+                    color="green"
+                    amount={`$${pagado.toLocaleString('es-MX')}`}
+                  />
+                  <CircularProgress
+                    value={porcentajePorVencer}
+                    label="Por Vencer"
+                    color="amber"
+                    amount={`$${porVencer.toLocaleString('es-MX')}`}
+                  />
+                  <CircularProgress
+                    value={porcentajeVencido}
+                    label="Vencido"
+                    color="red"
+                    amount={`$${vencido.toLocaleString('es-MX')}`}
+                  />
+                </div>
+
+                {/* Barra de Progreso Total */}
+                <div className="bg-white rounded-lg p-4">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">Progreso Total de Pagos</span>
+                    <span className="text-sm font-bold text-indigo-600">{porcentajePagado.toFixed(1)}%</span>
+                  </div>
+                  <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="h-full flex">
+                      <div 
+                        className="bg-green-500"
+                        style={{ width: `${porcentajePagado}%` }}
+                      />
+                      <div 
+                        className="bg-amber-500"
+                        style={{ width: `${porcentajePorVencer}%` }}
+                      />
+                      <div 
+                        className="bg-red-500"
+                        style={{ width: `${porcentajeVencido}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Desglose de Montos */}
+              <div className="grid grid-cols-2 gap-4">
+                <MontoCard
+                  icon="📊"
+                  label="Total del Contrato"
+                  amount={totalContrato}
+                  color="blue"
+                />
+                <MontoCard
+                  icon="✅"
+                  label="Total Abonado"
+                  amount={pagado}
+                  color="green"
+                />
+                <MontoCard
+                  icon="⏰"
+                  label="Saldo por Vencer"
+                  amount={porVencer}
+                  color="amber"
+                />
+                <MontoCard
+                  icon="⚠️"
+                  label="Saldo Vencido"
+                  amount={vencido}
+                  color="red"
+                />
+              </div>
             </div>
           )}
+
+          {/* TAB: DOCUMENTOS */}
           {activeTab === 'documentos' && (
-            <div className="text-center py-8 text-gray-500">
-              <p>Contenido de la pestaña Documentos</p>
+            <div className="space-y-6">
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200">
+                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-gray-900">
+                  <span className="text-2xl">📁</span>
+                  Gestión de Documentos
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <DocumentCard
+                    title="Contrato PDF"
+                    icon="📄"
+                    status="disponible"
+                    action="Generar"
+                  />
+                  <DocumentCard
+                    title="Identificación"
+                    icon="🪪"
+                    status="pendiente"
+                    action="Subir"
+                  />
+                  <DocumentCard
+                    title="Comprobante de Domicilio"
+                    icon="🏠"
+                    status="pendiente"
+                    action="Subir"
+                  />
+                  <DocumentCard
+                    title="Firma Digital"
+                    icon="✍️"
+                    status="pendiente"
+                    action="Solicitar"
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>
 
+        {/* Footer */}
         <div className="border-t p-4 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
           <button
             onClick={onClose}
@@ -1402,8 +1686,146 @@ function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: (
           >
             Cerrar
           </button>
+          <button
+            onClick={() => {
+              onClose();
+              // Aquí puedes agregar la lógica para abrir el modal de edición
+            }}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+          >
+            Editar Cliente
+          </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ========== COMPONENTES AUXILIARES ==========
+// AGREGAR ESTOS COMPONENTES AL FINAL DEL ARCHIVO (después de ClienteDetailModal)
+
+function InfoRow({ label, value, icon, highlight }: { 
+  label: string; 
+  value: string; 
+  icon?: string; 
+  highlight?: boolean 
+}) {
+  return (
+    <div className={`flex items-start justify-between ${highlight ? 'bg-white p-2 rounded' : ''}`}>
+      <span className="text-sm text-gray-600 flex items-center gap-1">
+        {icon && <span>{icon}</span>}
+        {label}:
+      </span>
+      <span className={`text-sm font-medium text-right ml-2 ${highlight ? 'text-blue-600 text-base' : 'text-gray-900'}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function CircularProgress({ value, label, color, amount }: {
+  value: number;
+  label: string;
+  color: 'green' | 'amber' | 'red';
+  amount: string;
+}) {
+  const radius = 45;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (value / 100) * circumference;
+  
+  const colors = {
+    green: { stroke: '#10b981', bg: 'bg-green-100', text: 'text-green-700' },
+    amber: { stroke: '#f59e0b', bg: 'bg-amber-100', text: 'text-amber-700' },
+    red: { stroke: '#ef4444', bg: 'bg-red-100', text: 'text-red-700' },
+  };
+  
+  const theme = colors[color];
+  
+  return (
+    <div className="text-center">
+      <div className="relative inline-block">
+        <svg className="transform -rotate-90" width="120" height="120">
+          <circle
+            cx="60"
+            cy="60"
+            r={radius}
+            stroke="#e5e7eb"
+            strokeWidth="10"
+            fill="none"
+          />
+          <circle
+            cx="60"
+            cy="60"
+            r={radius}
+            stroke={theme.stroke}
+            strokeWidth="10"
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            className="transition-all duration-500"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-2xl font-bold text-gray-800">{value.toFixed(0)}%</span>
+        </div>
+      </div>
+      <div className={`mt-2 px-3 py-1 rounded-full text-sm font-medium inline-block ${theme.bg} ${theme.text}`}>
+        {label}
+      </div>
+      <div className="text-sm font-semibold text-gray-700 mt-1">{amount}</div>
+    </div>
+  );
+}
+
+function MontoCard({ icon, label, amount, color }: {
+  icon: string;
+  label: string;
+  amount: number;
+  color: 'blue' | 'green' | 'amber' | 'red';
+}) {
+  const colors = {
+    blue: 'from-blue-50 to-blue-100 border-blue-200',
+    green: 'from-green-50 to-green-100 border-green-200',
+    amber: 'from-amber-50 to-amber-100 border-amber-200',
+    red: 'from-red-50 to-red-100 border-red-200',
+  };
+  
+  return (
+    <div className={`bg-gradient-to-br ${colors[color]} rounded-xl p-5 border`}>
+      <div className="text-3xl mb-2">{icon}</div>
+      <div className="text-sm text-gray-600 mb-1">{label}</div>
+      <div className="text-2xl font-bold text-gray-900">
+        ${amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+      </div>
+      <div className="text-xs text-gray-500 mt-1">MXN</div>
+    </div>
+  );
+}
+
+function DocumentCard({ title, icon, status, action }: {
+  title: string;
+  icon: string;
+  status: 'disponible' | 'pendiente';
+  action: string;
+}) {
+  const statusColors = {
+    disponible: 'bg-green-100 text-green-800',
+    pendiente: 'bg-amber-100 text-amber-800',
+  };
+  
+  return (
+    <div className="bg-white rounded-lg p-4 border-2 border-gray-200 hover:border-blue-300 transition-colors">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-3xl">{icon}</span>
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>
+          {status === 'disponible' ? 'Disponible' : 'Pendiente'}
+        </span>
+      </div>
+      <h4 className="font-medium text-gray-900 mb-3">{title}</h4>
+      <button className="w-full py-2 px-4 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium text-sm transition-colors">
+        {action}
+      </button>
     </div>
   );
 }
