@@ -673,9 +673,10 @@ export default function Clientes() {
           onClose={() => setContratoModal(null)}
         />
       )}
-
-
-
+// ============================================================
+// COPIAR DESDE AQUÍ HASTA EL FINAL DEL ARCHIVO
+// Reemplaza todo después de la línea que dice:
+// {/* Modal Recordatorio */}
 // ============================================================
 
       {/* Modal Recordatorio */}
