@@ -499,51 +499,13 @@ export default function Clientes() {
         )}
       </div>
 
-      {/* Modal Ver Cliente */}
-      {modal && (
-        <div className="fixed inset-0 bg-black/30 grid place-items-center p-4 z-50">
-          <div className="bg-white rounded-xl border w-full max-w-3xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Información Completa del Cliente</h3>
-              <button onClick={() => setModal(null)} className="text-gray-500 hover:text-black">✕</button>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <h4 className="font-semibold text-gray-800">Datos Personales</h4>
-                <div><span className="font-medium">Nombre:</span> {modal.nombre} {modal.apellidos}</div>
-                <div><span className="font-medium">Email:</span> {modal.email}</div>
-                <div><span className="font-medium">Teléfono:</span> {modal.telefono || "–"}</div>
-                <div><span className="font-medium">Régimen Fiscal:</span> {modal.regimen_fiscal || "–"}</div>
-                <div><span className="font-medium">Fecha de Registro:</span> {modal.fecha_registro ? dayjs(modal.fecha_registro).format("DD/MM/YYYY") : "–"}</div>
-              </div>
-              
-              <div className="space-y-3">
-                <h4 className="font-semibold text-gray-800">Información del Contrato</h4>
-                {modal.bodega_id ? (
-                  <>
-                    <div><span className="font-medium">Bodega:</span> {modal.bodega_id}</div>
-                    <div><span className="font-medium">Módulo:</span> {modal.modulo}</div>
-                    <div><span className="font-medium">Planta:</span> {modal.planta}</div>
-                    <div><span className="font-medium">Medidas:</span> {modal.medidas}</div>
-                    <div><span className="font-medium">Metros:</span> {modal.metros}m²</div>
-                    <div><span className="font-medium">Fecha Inicio:</span> {modal.fecha_inicio ? dayjs(modal.fecha_inicio).format("DD/MM/YYYY") : "–"}</div>
-                    <div><span className="font-medium">Duración:</span> {modal.duracion_meses} meses</div>
-                    <div><span className="font-medium">Fecha Vencimiento:</span> {modal.fecha_expiracion ? dayjs(modal.fecha_expiracion).format("DD/MM/YYYY") : "–"}</div>
-                    <div><span className="font-medium">Pago Mensual:</span> ${modal.pago_mensual?.toLocaleString()} MXN</div>
-                  </>
-                ) : (
-                  <div className="text-gray-500">Sin contrato asignado</div>
-                )}
-              </div>
-            </div>
-            
-            <div className="text-right">
-              <button className="px-4 py-2 border rounded" onClick={() => setModal(null)}>Cerrar</button>
-            </div>
-          </div>
-        </div>
-      )}
+     {/* Modal Ver Cliente */}
+{modal && (
+  <ClienteDetailModal
+    cliente={modal} 
+    onClose={() => setModal(null)} 
+  />
+)}
 
       {/* Modal Crear Cliente */}
       {createModal && (
@@ -712,6 +674,10 @@ export default function Clientes() {
         />
       )}
 
+
+
+// ============================================================
+
       {/* Modal Recordatorio */}
       {recordatorioModal && (
         <RecordatorioModal
@@ -742,9 +708,9 @@ export default function Clientes() {
   );
 }
 
-// CONTINÚA CON LOS COMPONENTES...
-// Ver siguiente artefacto para los componentes modales
-// AGREGAR ESTOS COMPONENTES AL FINAL DE Clientes.tsx
+// ============================================================
+// COMPONENTES AUXILIARES - TODOS AL MISMO NIVEL
+// ============================================================
 
 // Componente Modal de Edición
 function EditClienteModal({ 
@@ -761,7 +727,6 @@ function EditClienteModal({
   const [editData, setEditData] = useState({ ...cliente });
   const bodegaSeleccionada = bodegas.find(b => b.id === editData.bodega_id);
 
-  // Actualizar precio automáticamente cuando se selecciona bodega
   useEffect(() => {
     if (editData.bodega_id && editData.bodega_id !== cliente.bodega_id) {
       const bodega = bodegas.find(b => b.id === editData.bodega_id);
@@ -953,7 +918,6 @@ function ContratoModal({ cliente, bodega, onClose }: { cliente: Cliente; bodega?
           <button onClick={onClose} className="text-gray-500 hover:text-black">✕</button>
         </div>
 
-        {/* Información del cliente */}
         <div className="bg-blue-50 p-4 rounded border border-blue-200">
           <h4 className="font-medium mb-2">Cliente: {cliente.nombre} {cliente.apellidos}</h4>
           <div className="grid grid-cols-2 gap-2 text-sm">
@@ -1197,7 +1161,6 @@ function ImportCSVModal({
   return (
     <div className="fixed inset-0 bg-black/50 grid place-items-center p-4 z-50">
       <div className="bg-white rounded-xl border w-full max-w-4xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-xl font-semibold">📊 Importar Clientes desde CSV</h3>
@@ -1206,14 +1169,12 @@ function ImportCSVModal({
           <button onClick={onClose} className="text-gray-500 hover:text-black text-2xl">✕</button>
         </div>
 
-        {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
             ⚠️ {error}
           </div>
         )}
 
-        {/* File Upload Area */}
         {!csvFile && !importResult && (
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors">
             <div className="flex flex-col items-center gap-4">
@@ -1240,7 +1201,6 @@ function ImportCSVModal({
           </div>
         )}
 
-        {/* Preview */}
         {csvFile && csvPreview.length > 0 && !importResult && (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -1289,22 +1249,6 @@ function ImportCSVModal({
               </div>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <div className="flex gap-3">
-                <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div className="text-sm text-amber-800">
-                  <p className="font-medium mb-1">Antes de continuar:</p>
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>Los clientes con emails existentes serán <strong>actualizados</strong></li>
-                    <li>Los clientes nuevos serán <strong>creados</strong></li>
-                    <li>Las bodegas se asignarán automáticamente según la columna "Propiedad"</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
             <div className="flex justify-end gap-3">
               <button
                 onClick={onClose}
@@ -1316,40 +1260,18 @@ function ImportCSVModal({
               <button
                 onClick={onProcess}
                 disabled={importing}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {importing ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Procesando...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                    Importar Clientes
-                  </>
-                )}
+                {importing ? "Procesando..." : "Importar Clientes"}
               </button>
             </div>
           </div>
         )}
 
-        {/* Results */}
         {importResult && (
           <div className="space-y-4">
             <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
               <h4 className="text-xl font-semibold text-green-900 mb-2">¡Importación Completada!</h4>
-              
               <div className="grid grid-cols-3 gap-4 mt-6">
                 <div className="bg-white rounded-lg p-4">
                   <div className="text-3xl font-bold text-green-600">{importResult.exitosos}</div>
@@ -1365,25 +1287,6 @@ function ImportCSVModal({
                 </div>
               </div>
             </div>
-
-            {importResult.detalles && importResult.detalles.length > 0 && (
-              <div className="bg-gray-50 border rounded-lg p-4 max-h-60 overflow-y-auto">
-                <h5 className="font-medium mb-2">Detalles de la importación:</h5>
-                <div className="space-y-1 text-sm font-mono">
-                  {importResult.detalles.map((detalle: string, i: number) => (
-                    <div key={i} className={`
-                      ${detalle.startsWith('✅') ? 'text-green-700' : ''}
-                      ${detalle.startsWith('🔄') ? 'text-blue-700' : ''}
-                      ${detalle.startsWith('❌') ? 'text-red-700' : ''}
-                      ${detalle.startsWith('⚠️') ? 'text-amber-700' : ''}
-                    `}>
-                      {detalle}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="flex justify-center">
               <button
                 onClick={onClose}
@@ -1394,6 +1297,111 @@ function ImportCSVModal({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ========== COMPONENTE DE DETALLE MEJORADO ==========
+function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<'general' | 'contrato' | 'pagos' | 'documentos'>('general');
+
+  const totalContrato = cliente.cargos || 0;
+  const pagado = cliente.abonos || 0;
+  const porVencer = cliente.saldo || 0;
+  const vencido = cliente.vencido_hoy || 0;
+  
+  const porcentajePagado = totalContrato > 0 ? (pagado / totalContrato) * 100 : 0;
+  const porcentajeVencido = totalContrato > 0 ? (vencido / totalContrato) * 100 : 0;
+  const porcentajePorVencer = totalContrato > 0 ? (porVencer / totalContrato) * 100 : 0;
+
+  const diasTranscurridos = cliente.fecha_inicio && cliente.fecha_expiracion ? 
+    dayjs().diff(dayjs(cliente.fecha_inicio), 'day') : 0;
+  const diasTotales = cliente.fecha_inicio && cliente.fecha_expiracion ?
+    dayjs(cliente.fecha_expiracion).diff(dayjs(cliente.fecha_inicio), 'day') : 0;
+  const porcentajeTiempo = diasTotales > 0 ? (diasTranscurridos / diasTotales) * 100 : 0;
+
+  const diasRestantes = cliente.fecha_expiracion ? 
+    dayjs(cliente.fecha_expiracion).diff(dayjs(), 'day') : null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 grid place-items-center p-4 z-50 overflow-y-auto">
+      <div className="bg-white rounded-2xl w-full max-w-6xl my-8 shadow-2xl">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 rounded-t-2xl">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center text-2xl font-bold">
+                  {cliente.nombre?.charAt(0)}{cliente.apellidos?.charAt(0)}
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold">{cliente.nombre} {cliente.apellidos}</h2>
+                  <p className="text-blue-100 text-sm">{cliente.email}</p>
+                </div>
+              </div>
+            </div>
+            <button 
+              onClick={onClose}
+              className="text-white/80 hover:text-white text-3xl font-light"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="flex gap-2 mt-6 border-t border-white/20 pt-4">
+            {[
+              { id: 'general' as const, label: 'General', icon: '👤' },
+              { id: 'contrato' as const, label: 'Contrato', icon: '📄' },
+              { id: 'pagos' as const, label: 'Pagos', icon: '💰' },
+              { id: 'documentos' as const, label: 'Documentos', icon: '📁' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-white text-blue-600 font-semibold'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                <span className="mr-2">{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-6 max-h-[70vh] overflow-y-auto">
+          {activeTab === 'general' && (
+            <div className="text-center py-8 text-gray-500">
+              <p>Contenido de la pestaña General</p>
+            </div>
+          )}
+          {activeTab === 'contrato' && (
+            <div className="text-center py-8 text-gray-500">
+              <p>Contenido de la pestaña Contrato</p>
+            </div>
+          )}
+          {activeTab === 'pagos' && (
+            <div className="text-center py-8 text-gray-500">
+              <p>Contenido de la pestaña Pagos</p>
+            </div>
+          )}
+          {activeTab === 'documentos' && (
+            <div className="text-center py-8 text-gray-500">
+              <p>Contenido de la pestaña Documentos</p>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t p-4 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-medium transition-colors"
+          >
+            Cerrar
+          </button>
+        </div>
       </div>
     </div>
   );

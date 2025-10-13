@@ -1,9 +1,9 @@
 import React from "react";
 
 type FiltersBarProps = {
-  activos: Record<"disponible" | "apartada" | "vendida", boolean>;
+  activos: Record<"disponible" | "apartada" | "rentada", boolean>;
   setActivos: React.Dispatch<
-    React.SetStateAction<Record<"disponible" | "apartada" | "vendida", boolean>>
+    React.SetStateAction<Record<"disponible" | "apartada" | "rentada", boolean>>
   >;
   planta: "baja" | "alta";
   setPlanta: (p: "baja" | "alta") => void;
@@ -43,7 +43,7 @@ export default function FiltersBar({
           Planta Alta
         </button>
         <div className="ml-4 flex gap-2">
-          {(["disponible", "apartada", "vendida"] as const).map((k) => (
+          {(["disponible", "apartada", "rentada"] as const).map((k) => (
             <label key={k} className="flex items-center gap-1 text-sm">
               <input
                 type="checkbox"

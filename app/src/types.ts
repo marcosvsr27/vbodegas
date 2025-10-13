@@ -1,7 +1,7 @@
 // app/src/types.ts
 
 // ---- Bodega ----
-export type EstadoBodega = "disponible" | "apartada" | "vendida";
+export type EstadoBodega = "disponible" | "apartada" | "rentada";
 
 export interface Bodega {
   id: string;

@@ -261,7 +261,7 @@ app.get("/api/bodegas", async (_req, res) => {
         const v = String(r.status || "").toLowerCase().trim();
         if (["disponible", "available"].includes(v)) return "disponible";
         if (["apartada", "reserved"].includes(v)) return "apartada";
-        if (["vendida", "sold", "ocupada"].includes(v)) return "vendida";
+        if (["rentada", "sold", "ocupada"].includes(v)) return "rentada";
         return "disponible";
       })();
 
@@ -404,13 +404,13 @@ app.get("/api/admin/stats", async (_req, res) => {
     const totalRow = await query.get("SELECT COUNT(*) as c FROM bodegas", []);
     const disponiblesRow = await query.get("SELECT COUNT(*) as c FROM bodegas WHERE status='disponible'", []);
     const apartadasRow = await query.get("SELECT COUNT(*) as c FROM bodegas WHERE status='apartada'", []);
-    const vendidasRow = await query.get("SELECT COUNT(*) as c FROM bodegas WHERE status='vendida'", []);
+    const rentadasRow = await query.get("SELECT COUNT(*) as c FROM bodegas WHERE status='rentada'", []);
     
     res.json({ 
       total: totalRow.c, 
       disponibles: disponiblesRow.c, 
       apartadas: apartadasRow.c, 
-      vendidas: vendidasRow.c 
+      rentadas: rentadasRow.c 
     });
   } catch (e) {
     console.error("Error en stats:", e);
@@ -1220,8 +1220,8 @@ app.post("/api/admin/clientes/importar-csv", authMiddleware, async (req, res) =>
             medidas = bodega.medidas || "";
             metros = bodega.area_m2 || 0;
             
-            // Actualizar estado de bodega a apartada si no está vendida
-            if (bodega.status !== "vendida") {
+            // Actualizar estado de bodega a apartada si no está rentada
+            if (bodega.status !== "rentada") {
               await query.run("UPDATE bodegas SET status='apartada' WHERE id=?", [bodega.id]);
             }
           }

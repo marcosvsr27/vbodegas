@@ -22,9 +22,9 @@ import * as XLSX from 'xlsx';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
 const W = 1200, H = 800;
 const SVG_W = 3456, SVG_H = 2304;
-const COLORS = { disponible: "#10b981", apartada: "#f59e0b", vendida: "#ef4444" };
+const COLORS = { disponible: "#10b981", apartada: "#f59e0b", rentada: "#ef4444" };
 const FILL_ALPHA = "40";
-type Estado = "disponible" | "apartada" | "vendida";
+type Estado = "disponible" | "apartada" | "rentada";
 
 function diasRestantes(inicio?: string, fin?: string) {
   if (!fin) return null;
@@ -256,7 +256,7 @@ export default function AdminPanel() {
           ? COLORS.disponible
           : p.estado === "apartada"
           ? COLORS.apartada
-          : COLORS.vendida;
+          : COLORS.rentada;
       ctx.fillStyle = base + FILL_ALPHA;
       ctx.strokeStyle = base;
       ctx.lineWidth = 1;
@@ -369,9 +369,9 @@ export default function AdminPanel() {
         color: COLORS.apartada,
       },
       {
-        name: "Vendidas",
-        value: all.filter((b) => b.estado === "vendida").length,
-        color: COLORS.vendida,
+        name: "rentadas",
+        value: all.filter((b) => b.estado === "rentada").length,
+        color: COLORS.rentada,
       },
     ];
   }, [bodegas]);
@@ -384,7 +384,7 @@ export default function AdminPanel() {
         modulo: mod,
         disponibles: bodegas.filter(b => b.estado === "disponible").length,
         apartadas: bodegas.filter(b => b.estado === "apartada").length,
-        vendidas: bodegas.filter(b => b.estado === "vendida").length,
+        rentadas: bodegas.filter(b => b.estado === "rentada").length,
       };
     });
     return groupedByModule;
@@ -568,7 +568,7 @@ export default function AdminPanel() {
           </button>
           {estadoDropdownOpen && (
             <div className="absolute z-10 w-full mt-1 bg-white border rounded shadow-lg max-h-60 overflow-y-auto">
-              {(["disponible", "apartada", "vendida"] as Estado[]).map(estado => (
+              {(["disponible", "apartada", "rentada"] as Estado[]).map(estado => (
                 <label
                   key={estado}
                   className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
@@ -703,7 +703,7 @@ export default function AdminPanel() {
               <Tooltip />
               <Bar dataKey="disponibles" fill={COLORS.disponible} />
               <Bar dataKey="apartadas" fill={COLORS.apartada} />
-              <Bar dataKey="vendidas" fill={COLORS.vendida} />
+              <Bar dataKey="rentadas" fill={COLORS.rentada} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -754,7 +754,7 @@ export default function AdminPanel() {
                     <select value={drafts[b.id]?.estado ?? b.estado} onChange={(e) => updateDraft(b.id, { estado: e.target.value as Estado })} className="border px-2 py-1 rounded">
                       <option value="disponible">disponible</option>
                       <option value="apartada">apartada</option>
-                      <option value="vendida">vendida</option>
+                      <option value="rentada">rentada</option>
                     </select>
                   </td>
                   <td className="p-2">

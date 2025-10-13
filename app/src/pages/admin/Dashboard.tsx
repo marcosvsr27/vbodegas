@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from "recharts"
 
-const ESTADOS = ["disponible", "apartada", "vendida"] as const
+const ESTADOS = ["disponible", "apartada", "rentada"] as const
 const COLORS = ["#10b981", "#f59e0b", "#ef4444"]
 
 export default function Dashboard() {
@@ -37,12 +37,12 @@ export default function Dashboard() {
     modulo: m,
     disponibles: bodegas.filter(b => b.number.startsWith(m) && b.estado === "disponible").length,
     apartadas: bodegas.filter(b => b.number.startsWith(m) && b.estado === "apartada").length,
-    vendidas: bodegas.filter(b => b.number.startsWith(m) && b.estado === "vendida").length
+    rentadas: bodegas.filter(b => b.number.startsWith(m) && b.estado === "rentada").length
   }))
 
   // 🔹 Total ocupación %
   const total = bodegas.length || 1
-  const ocupacion = ((bodegas.filter(b => b.estado === "vendida").length / total) * 100).toFixed(1)
+  const ocupacion = ((bodegas.filter(b => b.estado === "rentada").length / total) * 100).toFixed(1)
 
   return (
     <div className="p-6 space-y-8">
@@ -101,7 +101,7 @@ export default function Dashboard() {
             <Legend />
             <Bar dataKey="disponibles" fill="#10b981" />
             <Bar dataKey="apartadas" fill="#f59e0b" />
-            <Bar dataKey="vendidas" fill="#ef4444" />
+            <Bar dataKey="rentadas" fill="#ef4444" />
           </BarChart>
         </ResponsiveContainer>
       </div>

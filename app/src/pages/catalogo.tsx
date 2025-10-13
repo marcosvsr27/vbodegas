@@ -39,7 +39,7 @@ function connectSSE(
 export default function Catalogo() {
   const [bodegas, setBodegas] = useState<Bodega[]>([])
   const [planta, setPlanta] = useState<"baja" | "alta">("baja")
-  const [activos, setActivos] = useState({ disponible: true, apartada: true, vendida: true })
+  const [activos, setActivos] = useState({ disponible: true, apartada: true, rentada: true })
   const [selected, setSelected] = useState<Bodega | null>(null)
   const [cartOpen, setCartOpen] = useState(false)
   const [cart, setCart] = useState<Bodega[]>([])
@@ -226,7 +226,7 @@ export default function Catalogo() {
       total: filtered.length,
       disponible: filtered.filter(b => b.estado === "disponible").length,
       apartada: filtered.filter(b => b.estado === "apartada").length,
-      vendida: filtered.filter(b => b.estado === "vendida").length,
+      rentada: filtered.filter(b => b.estado === "rentada").length,
     }
   }, [bodegas, planta])
 
@@ -335,16 +335,16 @@ export default function Catalogo() {
                 <span className="text-xs bg-white px-2 py-0.5 rounded-full font-bold">{stats.apartada}</span>
               </button>
               <button
-                onClick={() => setActivos({ ...activos, vendida: !activos.vendida })}
+                onClick={() => setActivos({ ...activos, rentada: !activos.rentada })}
                 className={`py-3 px-4 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
-                  activos.vendida
+                  activos.rentada
                     ? "bg-red-50 text-red-700 border-2 border-red-500 shadow-md"
                     : "bg-gray-50 text-gray-400 border-2 border-gray-200"
                 }`}
               >
-                <div className={`w-3 h-3 rounded-full ${activos.vendida ? "bg-red-500" : "bg-gray-300"}`} />
-                Vendida
-                <span className="text-xs bg-white px-2 py-0.5 rounded-full font-bold">{stats.vendida}</span>
+                <div className={`w-3 h-3 rounded-full ${activos.rentada ? "bg-red-500" : "bg-gray-300"}`} />
+                rentada
+                <span className="text-xs bg-white px-2 py-0.5 rounded-full font-bold">{stats.rentada}</span>
               </button>
             </div>
           </div>
@@ -364,8 +364,8 @@ export default function Catalogo() {
               <p className="text-xs text-gray-500 mt-1">Apartadas</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-red-600">{stats.vendida}</p>
-              <p className="text-xs text-gray-500 mt-1">Vendidas</p>
+              <p className="text-2xl font-bold text-red-600">{stats.rentada}</p>
+              <p className="text-xs text-gray-500 mt-1">rentadas</p>
             </div>
           </div>
         </div>
@@ -417,7 +417,7 @@ export default function Catalogo() {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-red-500 rounded border-2 border-red-600"></div>
-              <span className="text-sm text-gray-700 font-medium">Vendida</span>
+              <span className="text-sm text-gray-700 font-medium">rentada</span>
             </div>
           </div>
         </div>

@@ -36,7 +36,7 @@ export default function ModalBodega({ b, onClose, onBuy }: ModalBodegaProps) {
               ? "✅ Disponible"
               : b.estado === "apartada"
               ? "⏳ Apartada"
-              : "❌ Vendida"}
+              : "❌ rentada"}
           </p>
         </div>
 
