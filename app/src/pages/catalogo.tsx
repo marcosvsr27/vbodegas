@@ -1,4 +1,3 @@
-
 // app/src/pages/catalogo.tsx
 import { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import { loadStripe } from "@stripe/stripe-js"
@@ -6,6 +5,7 @@ import { fetchBodegas } from "../api"
 import type { Bodega } from "../types"
 import ModalBodega from "../components/ModalBodega"
 import CartDrawer from "../components/CartDrawer"
+import CalculadoraVolumen from "../components/CalculadoraVolumen"
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
 const W = 1200, H = 800
@@ -43,6 +43,8 @@ export default function Catalogo() {
   const [selected, setSelected] = useState<Bodega | null>(null)
   const [cartOpen, setCartOpen] = useState(false)
   const [cart, setCart] = useState<Bodega[]>([])
+  const [calculadoraOpen, setCalculadoraOpen] = useState(false)
+  const [filtroVolumen, setFiltroVolumen] = useState<number | null>(null)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const hitCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -91,7 +93,13 @@ export default function Catalogo() {
   const fondoSrc = planta === "baja" ? "/baja.svg" : "/alta.svg"
 
   const optimizedPolys = useMemo(() => {
-    const polys = bodegas.filter(b => b.planta === planta && activos[b.estado])
+    let polys = bodegas.filter(b => b.planta === planta && activos[b.estado])
+    
+    // Aplicar filtro de volumen si está activo
+    if (filtroVolumen !== null) {
+      polys = polys.filter(b => b.metros >= filtroVolumen)
+    }
+    
     colorToPolyMap.current.clear()
 
     return polys.map((p, index) => {
@@ -120,7 +128,7 @@ export default function Catalogo() {
         color,
       }
     })
-  }, [bodegas, planta, activos])
+  }, [bodegas, planta, activos, filtroVolumen])
 
   const drawMainCanvas = useCallback(() => {
     const canvas = canvasRef.current
@@ -221,14 +229,39 @@ export default function Catalogo() {
   )
 
   const stats = useMemo(() => {
-    const filtered = bodegas.filter(b => b.planta === planta)
+    let filtered = bodegas.filter(b => b.planta === planta)
+    
+    // Aplicar filtro de volumen si está activo
+    if (filtroVolumen !== null) {
+      filtered = filtered.filter(b => b.metros >= filtroVolumen)
+    }
+    
     return {
       total: filtered.length,
       disponible: filtered.filter(b => b.estado === "disponible").length,
       apartada: filtered.filter(b => b.estado === "apartada").length,
       rentada: filtered.filter(b => b.estado === "rentada").length,
     }
-  }, [bodegas, planta])
+  }, [bodegas, planta, filtroVolumen])
+
+  const handleFiltrarPorVolumen = (volumenRequerido: number) => {
+    setFiltroVolumen(volumenRequerido)
+  }
+
+  const limpiarFiltroVolumen = () => {
+    setFiltroVolumen(null)
+  }
+
+  const bodegasParaCalculadora = useMemo(() => {
+    return bodegas
+      .filter(b => b.estado === "disponible")
+      .map(b => ({
+        id: b.id,
+        number: b.number,
+        metros: b.metros,
+        medidas: b.medidas || "",
+      }))
+  }, [bodegas])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50">
@@ -248,20 +281,32 @@ export default function Catalogo() {
               </div>
             </div>
             
-            <button
-              onClick={() => setCartOpen(true)}
-              className="relative bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:-translate-y-0.5 flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              Carrito
-              {cart.length > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-pulse">
-                  {cart.length}
-                </span>
-              )}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setCalculadoraOpen(true)}
+                className="relative bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Calculadora
+              </button>
+              
+              <button
+                onClick={() => setCartOpen(true)}
+                className="relative bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:-translate-y-0.5 flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Carrito
+                {cart.length > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-pulse">
+                    {cart.length}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -269,6 +314,36 @@ export default function Catalogo() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Panel de Control */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-8 backdrop-blur-sm bg-white/95">
+          {/* Filtro de Volumen Activo */}
+          {filtroVolumen !== null && (
+            <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-bold text-blue-900">Filtro de Volumen Activo</p>
+                    <p className="text-sm text-blue-700">
+                      Mostrando bodegas con ≥ {filtroVolumen.toFixed(2)} m²
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={limpiarFiltroVolumen}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold transition-colors duration-200 flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Limpiar Filtro
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Selector de Planta */}
           <div className="mb-6">
             <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Seleccionar Planta</h3>
@@ -343,7 +418,7 @@ export default function Catalogo() {
                 }`}
               >
                 <div className={`w-3 h-3 rounded-full ${activos.rentada ? "bg-red-500" : "bg-gray-300"}`} />
-                rentada
+                Rentada
                 <span className="text-xs bg-white px-2 py-0.5 rounded-full font-bold">{stats.rentada}</span>
               </button>
             </div>
@@ -365,7 +440,7 @@ export default function Catalogo() {
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-red-600">{stats.rentada}</p>
-              <p className="text-xs text-gray-500 mt-1">rentadas</p>
+              <p className="text-xs text-gray-500 mt-1">Rentadas</p>
             </div>
           </div>
         </div>
@@ -417,7 +492,7 @@ export default function Catalogo() {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-red-500 rounded border-2 border-red-600"></div>
-              <span className="text-sm text-gray-700 font-medium">rentada</span>
+              <span className="text-sm text-gray-700 font-medium">Rentada</span>
             </div>
           </div>
         </div>
@@ -434,6 +509,15 @@ export default function Catalogo() {
 
       {/* Carrito */}
       <CartDrawer open={cartOpen} items={cart} onClose={() => setCartOpen(false)} />
+
+      {/* Calculadora de Volumen */}
+      <CalculadoraVolumen
+        isOpen={calculadoraOpen}
+        onClose={() => setCalculadoraOpen(false)}
+        onFiltrar={handleFiltrarPorVolumen}
+        bodegasDisponibles={bodegasParaCalculadora}
+      />
     </div>
   )
 }
+
