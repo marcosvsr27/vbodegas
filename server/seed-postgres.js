@@ -1,4 +1,3 @@
-// server/seed-postgres.js
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -24,11 +23,6 @@ async function seed() {
   console.log("Conectado a PostgreSQL");
 
   try {
-    // Limpiar tablas existentes
-    await client.query("DELETE FROM clientes");
-    await client.query("DELETE FROM bodegas");
-    console.log("Tablas limpiadas");
-
     // Cargar coordenadas
     const coordsAlta = JSON.parse(fs.readFileSync(COORDS_ALTA, "utf8"));
     const coordsBaja = JSON.parse(fs.readFileSync(COORDS_BAJA, "utf8"));
@@ -41,9 +35,9 @@ async function seed() {
     const csvData = fs.readFileSync(CSV_PATH, "utf8");
     const records = parse(csvData, { columns: true, skip_empty_lines: true });
 
-    console.log(`Insertando ${records.length} bodegas...`);
+    console.log(`Insertando/actualizando ${records.length} bodegas...`);
 
-    // Insertar bodegas
+    // Insertar bodegas con UPSERT (sin tocar status ni price)
     for (const r of records) {
       const id = r.NUMBER.trim();
       const coords = coordMap.get(id);
@@ -51,6 +45,14 @@ async function seed() {
       await client.query(`
         INSERT INTO bodegas (id, number, planta, medidas, area_m2, price, cualitativos, status, points)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (id) DO UPDATE SET
+          number = EXCLUDED.number,
+          planta = EXCLUDED.planta,
+          medidas = EXCLUDED.medidas,
+          area_m2 = EXCLUDED.area_m2,
+          cualitativos = EXCLUDED.cualitativos,
+          points = EXCLUDED.points;
+          -- 👆 ya no actualiza price ni status
       `, [
         id,
         id,
@@ -59,19 +61,20 @@ async function seed() {
         parseFloat(r.M2) || 0,
         parseFloat((r["PRECIO RENTA"] || "").replace(/[^0-9.]/g, "")) || 0,
         r.CUALITATIVOS || "",
-        "disponible",
+        "disponible", // solo se usa en la inserción inicial
         coords ? JSON.stringify(coords.points) : "[]"
       ]);
     }
 
+    // Insertar admin con ON CONFLICT
+    const hashed = bcrypt.hashSync("admin123", 10);
+    await client.query(`
+      INSERT INTO administradores (id, nombre, email, telefono, rol, permisos, hash)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
+      ON CONFLICT (email) DO NOTHING;
+    `, ["admin-1", "Administrador", "admin@vbodegas.com", "0000000000", "superadmin", "completo", hashed]);
 
-const hashed = bcrypt.hashSync("admin123", 10);
-await client.query(`
-  INSERT INTO administradores (id, nombre, email, telefono, rol, permisos, hash)
-  VALUES ($1,$2,$3,$4,$5,$6,$7)
-`, ["admin-1", "Administrador", "admin@vbodegas.com", "0000000000", "superadmin", "completo", hashed]);
-
-    console.log(`✅ Seed completado: ${records.length} bodegas insertadas`);
+    console.log(`✅ Seed completado: ${records.length} bodegas procesadas`);
   } catch (error) {
     console.error("❌ Error durante el seed:", error);
     throw error;

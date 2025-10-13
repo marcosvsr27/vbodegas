@@ -18,7 +18,6 @@
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "better-sqlite3": "^11.7.0",
-    "pg": "^8.11.3",
     "chartjs-node-canvas": "^5.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -31,7 +30,9 @@
     "jsdom": "^27.0.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
+    "pdf-lib": "^1.17.1",
     "pdfkit": "^0.17.2",
+    "pg": "^8.11.3",
     "stripe": "^16.12.0",
     "xlsx": "^0.18.5"
   },

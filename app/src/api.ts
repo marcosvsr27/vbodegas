@@ -308,32 +308,90 @@ export async function asignarClienteBodega(clienteId: string, bodegaId: string) 
   return res.json();
 }
 
-// Función para generar contrato PDF
+// Agregar/actualizar estas funciones en app/src/api.ts
+
+// Generar contrato PDF y descargarlo
 export async function generarContratoPDF(clienteId: string) {
   const token = localStorage.getItem("token");
-  const res = await fetch(`${API_URL}/admin/clientes/${clienteId}/generar-contrato`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    credentials: "include",
-  });
   
-  if (res.ok) {
+  try {
+    const res = await fetch(`${API_URL}/admin/clientes/${clienteId}/generar-contrato`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: "include",
+    });
+    
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Error generando contrato");
+    }
+    
     // Descargar el PDF
     const blob = await res.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Contrato_Cliente_${clienteId}.pdf`;
+    
+    // Obtener el nombre del archivo desde los headers o usar uno por defecto
+    const contentDisposition = res.headers.get('Content-Disposition');
+    const filename = contentDisposition
+      ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+      : `Contrato_Cliente_${clienteId}_${Date.now()}.pdf`;
+    
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
     window.URL.revokeObjectURL(url);
+    
+    return { ok: true, mensaje: "Contrato generado y descargado exitosamente" };
+  } catch (error: any) {
+    console.error("Error generando contrato:", error);
+    throw error;
   }
+}
+
+// Listar contratos generados
+export async function listarContratosGenerados() {
+  const r = await baseFetch(`/admin/contratos/archivos`, { method: "GET" });
+  if (!r.ok) throw new Error("Error listando contratos");
+  return r.json();
+}
+
+// Descargar un contrato específico
+export async function descargarContrato(filename: string) {
+  const token = localStorage.getItem("token");
   
-  return res.json();
+  try {
+    const res = await fetch(`${API_URL}/admin/contratos/descargar/${filename}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: "include",
+    });
+    
+    if (!res.ok) {
+      throw new Error("Error descargando contrato");
+    }
+    
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    
+    return { ok: true };
+  } catch (error: any) {
+    console.error("Error descargando contrato:", error);
+    throw error;
+  }
 }
 
 // Función para subir contrato escaneado
@@ -397,3 +455,4 @@ export async function subirDocumentos(contratoId: string, ineFile: File, firmaFi
   if (!r.ok) throw new Error("Error subiendo documentos");
   return r.json();
 }
+

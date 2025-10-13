@@ -1,4 +1,4 @@
-// server/index.js22
+// server/index.js
 import express from "express";
 import cors from "cors";
 import Database from "better-sqlite3";
@@ -6,11 +6,18 @@ import pg from "pg";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
+import { generarContratoPDF } from "./utils/contratos.js";
+
+
 
 const { Pool } = pg;
 const PORT = process.env.PORT || 10000 || 8787;
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret";
 const IS_PRODUCTION = process.env.DATABASE_URL ? true : false;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // -------------------- Database Setup --------------------
 let db;
@@ -237,7 +244,17 @@ app.get("/api/me", async (req, res) => {
 
 app.get("/api/bodegas", async (_req, res) => {
   try {
-    const rows = await query.all("SELECT * FROM bodegas", []);
+    const rows = await query.all(`
+      SELECT *
+      FROM bodegas
+      ORDER BY
+        CASE WHEN planta = 'baja' THEN 0
+             WHEN planta = 'alta' THEN 1
+             ELSE 2
+        END,
+        LPAD(REGEXP_REPLACE(number, '[^0-9]', '', 'g'), 10, '0') ASC,
+        number ASC
+    `, []);
 
     const bodegas = rows.map((r) => {
       const estado = (() => {
@@ -752,6 +769,13 @@ app.post("/api/admin/clientes/:id/asignar-bodega", authMiddleware, async (req, r
   }
 });
 
+// Crear carpeta para contratos si no existe
+const CONTRATOS_DIR = path.join(__dirname, "contratos_generados");
+if (!fs.existsSync(CONTRATOS_DIR)) {
+  fs.mkdirSync(CONTRATOS_DIR, { recursive: true });
+}
+
+// ========== ENDPOINT PARA GENERAR CONTRATO PDF ==========
 app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req, res) => {
   try {
     if (!["admin", "superadmin", "editor"].includes(req.user.rol)) {
@@ -759,32 +783,181 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     }
 
     const clienteId = req.params.id;
-    const cliente = await query.get("SELECT * FROM clientes WHERE id=?", [clienteId]);
+    
+    // Obtener datos del cliente y bodega
+    const cliente = await query.get(`
+      SELECT c.*, b.number as bodega_number, b.planta, b.medidas, b.area_m2, b.price
+      FROM clientes c 
+      LEFT JOIN bodegas b ON c.bodega_id = b.id
+      WHERE c.id=?
+    `, [clienteId]);
     
     if (!cliente) {
       return res.status(404).json({ error: "Cliente no encontrado" });
     }
 
-    const bodega = await query.get("SELECT * FROM bodegas WHERE id=?", [cliente.bodega_id]);
-    
+    if (!cliente.bodega_id) {
+      return res.status(400).json({ error: "El cliente no tiene bodega asignada" });
+    }
+
+    // Preparar datos para el contrato
+    const data = {
+      // ARRENDATARIO
+      arrendatario: {
+        nombre: cliente.nombre || "NOMBRE COMPLETO O RAZÓN SOCIAL",
+        representante: "REPRESENTANTE LEGAL", // Agregar campo en DB si es necesario
+        constitucion: "DATOS DE CONSTITUCIÓN", // Agregar campo en DB
+        domicilio: "DOMICILIO COMPLETO",
+        contacto: `Tel: ${cliente.telefono || "N/A"}, Email: ${cliente.email}`,
+        bienes: "Bienes muebles varios"
+      },
+      
+      // BODEGA
+      bodega: {
+        ident: `Módulo ${cliente.modulo || ""} No. ${cliente.bodega_number || cliente.bodega_id}`,
+        superficie: `${cliente.area_m2 || cliente.metros || 0} metros cuadrados`
+      },
+      
+      // VIGENCIA
+      vigencia: {
+        inicio: cliente.fecha_inicio ? new Date(cliente.fecha_inicio).toLocaleDateString('es-MX') : "FECHA INICIO",
+        fin: cliente.fecha_expiracion ? new Date(cliente.fecha_expiracion).toLocaleDateString('es-MX') : "FECHA FIN"
+      },
+      
+      // PAGOS
+      pagos: {
+        renta_mensual: `$${(cliente.pago_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`,
+        deposito: `$${(cliente.pago_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`,
+        banco: "BBVA Bancomer",
+        cuenta: "0124918231",
+        clabe: "012375001249182317"
+      },
+      
+      // ANEXO 1
+      anexo1: {
+        bodega_linea: `Módulo ${cliente.modulo || ""} No. ${cliente.bodega_number || cliente.bodega_id}`,
+        superficie_linea: `${cliente.area_m2 || cliente.metros || 0} m²`,
+        fecha_hora: new Date().toLocaleString('es-MX', { 
+          day: '2-digit', 
+          month: 'long', 
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      },
+      
+      // ANEXO 2 (personas autorizadas)
+      anexo2: [],
+      
+      // ANEXO 3
+      anexo3: {
+        bodega_linea: `${cliente.bodega_number || cliente.bodega_id}`
+      },
+      
+      // ANEXO 4 (inventario bienes)
+      anexo4: [],
+      
+      // ANEXO 5
+      anexo5: {
+        bodega: `${cliente.bodega_number || cliente.bodega_id}`,
+        inicio: cliente.fecha_inicio ? new Date(cliente.fecha_inicio).toLocaleDateString('es-MX') : "",
+        periodo: `${cliente.duracion_meses || 12} meses`
+      },
+      
+      // ANEXO 6
+      anexo6: {
+        fecha: new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
+      },
+      
+      // FIRMAS
+      firmas: {
+        arrendador: "FRANCISCA RODRÍGUEZ DE ANDA",
+        arrendatario: cliente.nombre || ""
+      }
+    };
+
+    // Rutas de archivos
+    const templatePath = path.join(__dirname, "templates", "contrato_template.pdf");
+    const fileName = `Contrato_${cliente.nombre.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+    const outputPath = path.join(CONTRATOS_DIR, fileName);
+
+    // Verificar que existe el template
+    if (!fs.existsSync(templatePath)) {
+      return res.status(500).json({ 
+        error: "Template de contrato no encontrado",
+        info: "Coloca el PDF original en server/templates/contrato_template.pdf"
+      });
+    }
+
+    // Generar el PDF
+    await generarContratoPDF(data, templatePath, outputPath);
+
+    // Log de la acción
     broadcast("log", {
       type: "contrato_generado",
       clienteId: clienteId,
       bodegaId: cliente.bodega_id,
+      archivo: fileName,
       user: req.user?.email || "admin",
       timestamp: new Date().toISOString()
     });
 
-    res.json({ 
-      ok: true, 
-      mensaje: "Contrato generado exitosamente",
-      data: { cliente, bodega }
+    // Enviar el archivo
+    res.download(outputPath, fileName, (err) => {
+      if (err) {
+        console.error("Error enviando archivo:", err);
+        res.status(500).json({ error: "Error descargando contrato" });
+      }
     });
+
   } catch (e) {
     console.error("Error generando contrato:", e);
-    res.status(500).json({ error: "Error generando contrato" });
+    res.status(500).json({ error: "Error generando contrato: " + e.message });
   }
 });
+
+// ========== ENDPOINT PARA LISTAR CONTRATOS GENERADOS ==========
+app.get("/api/admin/contratos/archivos", authMiddleware, async (req, res) => {
+  try {
+    if (!["admin", "superadmin", "editor", "viewer"].includes(req.user.rol)) {
+      return res.status(403).json({ error: "Solo admins" });
+    }
+
+    const files = fs.readdirSync(CONTRATOS_DIR)
+      .filter(file => file.endsWith('.pdf'))
+      .map(file => ({
+        nombre: file,
+        fecha: fs.statSync(path.join(CONTRATOS_DIR, file)).mtime,
+        size: fs.statSync(path.join(CONTRATOS_DIR, file)).size
+      }))
+      .sort((a, b) => b.fecha - a.fecha);
+
+    res.json({ ok: true, contratos: files });
+  } catch (e) {
+    console.error("Error listando contratos:", e);
+    res.status(500).json({ error: "Error listando contratos" });
+  }
+});
+
+// ========== ENDPOINT PARA DESCARGAR CONTRATO ESPECÍFICO ==========
+app.get("/api/admin/contratos/descargar/:filename", authMiddleware, async (req, res) => {
+  try {
+    if (!["admin", "superadmin", "editor", "viewer"].includes(req.user.rol)) {
+      return res.status(403).json({ error: "Solo admins" });
+    }
+
+    const filename = req.params.filename;
+    const filePath = path.join(CONTRATOS_DIR, filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "Archivo no encontrado" });
+    }
+
+    res.download(filePath, filename);
+  } catch (e) {
+    console.error("Error descargando contrato:", e);
+    res.status(500).json({ error: "Error descargando contrato" });
+  }
 
 app.post("/api/admin/clientes/:id/subir-contrato", authMiddleware, async (req, res) => {
   try {
@@ -930,4 +1103,4 @@ app.listen(PORT, () => {
 
 
 
-
+})

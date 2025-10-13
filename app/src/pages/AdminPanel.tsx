@@ -117,7 +117,14 @@ export default function AdminPanel() {
     es.addEventListener("bodegaUpdate", (e) => {
       try {
         const b = JSON.parse((e as MessageEvent).data) as Bodega;
-        setBodegas((prev) => prev.map((x) => (x.id === b.id ? b : x)));
+        setBodegas((prev) => {
+          const index = prev.findIndex(x => x.id === b.id);
+          if (index === -1) return prev;
+          
+          const newArray = [...prev];
+          newArray[index] = { ...newArray[index], ...b };
+          return newArray;
+        });
       } catch {}
     });
     es.addEventListener("log", (e) => {
@@ -332,10 +339,15 @@ export default function AdminPanel() {
       };
       const res = await adminPatch(b.id, body);
       if (res?.data) {
-        // ✅ Mantener el orden original al actualizar
-        setBodegas((prev) => prev.map((x) => 
-          x.id === b.id ? { ...x, ...res.data } : x
-        ));
+        // ✅ Actualizar SIN reordenar - mantener índice exacto
+        setBodegas((prev) => {
+          const index = prev.findIndex(x => x.id === b.id);
+          if (index === -1) return prev;
+          
+          const newArray = [...prev];
+          newArray[index] = { ...newArray[index], ...res.data };
+          return newArray;
+        });
       }
     } catch (e) {
       console.error("⚠ adminPatch", e);
