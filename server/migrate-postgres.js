@@ -12,7 +12,7 @@ async function migrate() {
 
   try {
     await client.connect();
-    console.log("🔄 Conectado a PostgreSQL. Migrando...");
+    console.log("📄 Conectado a PostgreSQL. Migrando...");
 
     // TABLA: administradores
     await client.query(`
@@ -28,7 +28,7 @@ async function migrate() {
     `);
     console.log("✓ Tabla administradores");
 
-    // TABLA: bodegas
+    // TABLA: bodegas (CON sort_order)
     await client.query(`
       CREATE TABLE IF NOT EXISTS bodegas (
         id VARCHAR(255) PRIMARY KEY,
@@ -39,10 +39,29 @@ async function migrate() {
         price DECIMAL(10,2),
         cualitativos TEXT,
         status VARCHAR(50) DEFAULT 'disponible',
-        points TEXT
+        points TEXT,
+        sort_order INTEGER
       );
     `);
     console.log("✓ Tabla bodegas");
+
+    // Agregar sort_order si no existe (para bases existentes)
+    try {
+      await client.query(`
+        ALTER TABLE bodegas 
+        ADD COLUMN IF NOT EXISTS sort_order INTEGER;
+      `);
+      console.log("✓ Columna sort_order verificada");
+    } catch (e) {
+      console.log("ℹ sort_order ya existe o no se pudo agregar");
+    }
+
+    // Crear índice
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_bodegas_sort 
+      ON bodegas(planta, sort_order);
+    `);
+    console.log("✓ Índice creado");
 
     // TABLA: clientes
     await client.query(`

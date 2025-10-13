@@ -37,7 +37,7 @@ async function seed() {
 
     console.log(`Insertando/actualizando ${records.length} bodegas...`);
 
-// Insertar bodegas con UPSERT (sin tocar status ni price)
+// Insertar bodegas con UPSERT (preservando status, price Y sort_order)
 let sortOrder = 0;
 for (const r of records) {
   const id = r.NUMBER.trim();
@@ -53,7 +53,7 @@ for (const r of records) {
       area_m2 = EXCLUDED.area_m2,
       cualitativos = EXCLUDED.cualitativos,
       points = EXCLUDED.points
-      -- 👆 ya no actualiza price, status NI sort_order
+      -- 👆 NO actualiza price, status NI sort_order
   `, [
     id,
     id,
@@ -64,7 +64,7 @@ for (const r of records) {
     r.CUALITATIVOS || "",
     "disponible",
     coords ? JSON.stringify(coords.points) : "[]",
-    sortOrder++  // ✅ Agregar orden incremental
+    sortOrder++  // ✅ Orden incremental
   ]);
 }
 

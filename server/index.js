@@ -252,8 +252,8 @@ app.get("/api/bodegas", async (_req, res) => {
              WHEN planta = 'alta' THEN 1
              ELSE 2
         END,
-        LPAD(REGEXP_REPLACE(number, '[^0-9]', '', 'g'), 10, '0') ASC,
-        number ASC
+        COALESCE(sort_order, 999999) ASC,
+        id ASC
     `, []);
 
     const bodegas = rows.map((r) => {
@@ -958,6 +958,7 @@ app.get("/api/admin/contratos/descargar/:filename", authMiddleware, async (req, 
     console.error("Error descargando contrato:", e);
     res.status(500).json({ error: "Error descargando contrato" });
   }
+});
 
 app.post("/api/admin/clientes/:id/subir-contrato", authMiddleware, async (req, res) => {
   try {
