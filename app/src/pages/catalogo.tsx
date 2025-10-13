@@ -7,7 +7,7 @@ import ModalBodega from "../components/ModalBodega"
 import CartDrawer from "../components/CartDrawer"
 import CalculadoraVolumen from "../components/CalculadoraVolumen"
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:10000';
 const W = 1200, H = 800
 const stripePromise = loadStripe(
   import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_TYooMQauvdEDq54NiTphI7jx"
