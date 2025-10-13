@@ -10,7 +10,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import { generarContratoPDF } from "./utils/contratos.js";
-
+import { parse } from "csv-parse/sync";
 
 
 const { Pool } = pg;
