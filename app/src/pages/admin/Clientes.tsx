@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   getClientes,
   updateCliente,
-  updateClientePagos,  // 🆕 AGREGAR ESTA LÍNEA
+  updateClientePagos,
   deleteCliente,
   createCliente,
   sendRecordatorio,
@@ -39,14 +39,12 @@ function getColorFila(estado: string) {
   }
 }
 
-// Función para abrir WhatsApp con mensaje predeterminado
 function abrirWhatsApp(telefono: string, mensaje: string) {
   const tel = telefono.replace(/\D/g, '');
   const encoded = encodeURIComponent(mensaje);
   window.open(`https://wa.me/52${tel}?text=${encoded}`, '_blank');
 }
 
-// Función para abrir email con mensaje predeterminado
 function abrirEmail(email: string, asunto: string, mensaje: string) {
   const encodedSubject = encodeURIComponent(asunto);
   const encodedBody = encodeURIComponent(mensaje);
@@ -72,7 +70,7 @@ export default function Clientes() {
   const [recordatorioModal, setRecordatorioModal] = useState<Cliente | null>(null);
   const [contratoModal, setContratoModal] = useState<Cliente | null>(null);
   
-  // 🆕 Estados para importación CSV
+  // Estados para importación CSV
   const [importModal, setImportModal] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvPreview, setCsvPreview] = useState<any[]>([]);
@@ -215,7 +213,6 @@ export default function Clientes() {
     }
   }
 
-  // 🆕 Función para manejar selección de archivo CSV
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -227,7 +224,6 @@ export default function Clientes() {
     
     setCsvFile(file);
     
-    // Vista previa de las primeras 5 filas
     Papa.parse(file, {
       header: true,
       preview: 5,
@@ -240,7 +236,6 @@ export default function Clientes() {
     });
   }
 
-  // 🆕 Función para procesar el CSV completo
   async function procesarCSV() {
     if (!csvFile) return;
     
@@ -249,10 +244,8 @@ export default function Clientes() {
     setImportResult(null);
     
     try {
-      // Leer archivo completo
       const text = await csvFile.text();
       
-      // Enviar al servidor
       const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/admin/clientes/importar-csv`, {
         method: 'POST',
         headers: {
@@ -270,11 +263,8 @@ export default function Clientes() {
       }
       
       setImportResult(data.resultado);
-      
-      // Recargar lista de clientes
       await load();
       
-      // Limpiar después de 3 segundos si fue exitoso
       if (data.resultado.errores === 0) {
         setTimeout(() => {
           setImportModal(false);
@@ -293,9 +283,6 @@ export default function Clientes() {
 
   const bodegaSeleccionada = bodegas.find(b => b.id === nuevoCliente.bodega_id);
 
-  // CONTINÚA EN PARTE 2...
-  // CONTINUACIÓN DE Clientes.tsx - PARTE 2/2
-  
   return (
     <div className="p-6 space-y-6">
       {/* Header con botón de importación */}
@@ -500,16 +487,15 @@ export default function Clientes() {
         )}
       </div>
 
-{/* Modal Ver Cliente */}
-{modal && (
-  <ClienteDetailModal
-    cliente={modal}
-    bodegas={bodegas}  // 🆕 AGREGAR ESTA LÍNEA
-    onClose={() => setModal(null)}
-    onUpdate={onUpdate}  // 🆕 AGREGAR ESTA LÍNEA
-  />
-)}
-
+      {/* Modal Ver Cliente */}
+      {modal && (
+        <ClienteDetailModal
+          cliente={modal}
+          bodegas={bodegas}
+          onClose={() => setModal(null)}
+          onUpdate={onUpdate}
+        />
+      )}
 
       {/* Modal Crear Cliente */}
       {createModal && (
@@ -678,9 +664,6 @@ export default function Clientes() {
         />
       )}
 
-// {/* Modal Recordatorio */}
-
-
       {/* Modal Recordatorio */}
       {recordatorioModal && (
         <RecordatorioModal
@@ -689,7 +672,7 @@ export default function Clientes() {
         />
       )}
 
-      {/* 🆕 Modal de Importación CSV */}
+      {/* Modal de Importación CSV */}
       <ImportCSVModal
         isOpen={importModal}
         onClose={() => {
@@ -712,7 +695,7 @@ export default function Clientes() {
 }
 
 // ============================================================
-// COMPONENTES AUXILIARES - TODOS AL MISMO NIVEL
+// COMPONENTES AUXILIARES
 // ============================================================
 
 // Componente Modal de Edición
@@ -1137,7 +1120,7 @@ function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: ()
   );
 }
 
-// 🆕 Modal de Importación CSV
+// Modal de Importación CSV
 function ImportCSVModal({ 
   isOpen, 
   onClose, 
@@ -1305,18 +1288,17 @@ function ImportCSVModal({
   );
 }
 
-// ========== COMPONENTE DE DETALLE MEJORADO ==========
-// ========== REEMPLAZA EL ClienteDetailModal COMPLETO ==========
+// Modal de Detalle del Cliente (VERSIÓN COMPLETA CON TABS)
 function ClienteDetailModal({ 
   cliente, 
-  bodegas,     // 🆕 AGREGAR
+  bodegas,
   onClose,
-  onUpdate     // 🆕 AGREGAR
+  onUpdate
 }: { 
   cliente: Cliente; 
-  bodegas: Bodega[];    // 🆕 AGREGAR
+  bodegas: Bodega[];
   onClose: () => void;
-  onUpdate: (cliente: Cliente) => void;  // 🆕 AGREGAR
+  onUpdate: (cliente: Cliente) => void;
 }) {
   const [activeTab, setActiveTab] = useState<'general' | 'contrato' | 'pagos' | 'documentos'>('general');
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -1350,28 +1332,24 @@ function ClienteDetailModal({
   // Inicializar estados de pagos basándose en los abonos
   useEffect(() => {
     if (pagoMensual > 0) {
-      // Calcular cuántos meses están pagados basándose en los abonos
       const mesesPagadosCalculados = Math.floor(pagado / pagoMensual);
       const estadosMeses = Array(duracionMeses).fill(false).map((_, index) => index < mesesPagadosCalculados);
       setMesesPagados(estadosMeses);
     }
   }, [pagado, pagoMensual, duracionMeses]);
 
-  // Función para marcar/desmarcar un mes como pagado
   const toggleMesPagado = (index: number) => {
     const nuevoEstado = [...mesesPagados];
     nuevoEstado[index] = !nuevoEstado[index];
     setMesesPagados(nuevoEstado);
   };
 
-  // Función para liquidar todo el contrato
   const liquidarTodo = () => {
     if (confirm('¿Confirmas que el cliente liquidó todo el contrato?')) {
       setMesesPagados(Array(duracionMeses).fill(true));
     }
   };
 
-  // Función para guardar cambios de pagos
   const guardarPagos = async () => {
     setGuardandoPagos(true);
     try {
@@ -1379,16 +1357,14 @@ function ClienteDetailModal({
       const nuevosAbonos = mesesPagadosCount * pagoMensual;
       const nuevoSaldo = totalContrato - nuevosAbonos;
       
-      // Calcular vencido_hoy basado en fecha actual
       const vencidoHoy = (diasRestantes && diasRestantes < 0 && nuevoSaldo > 0) 
         ? nuevoSaldo 
         : 0;
   
-      // Usar la función específica de pagos
       await updateClientePagos(cliente.id, nuevosAbonos, nuevoSaldo, vencidoHoy);
   
       alert('✅ Pagos actualizados correctamente');
-      window.location.reload(); // Recargar para ver cambios
+      window.location.reload();
     } catch (error: any) {
       console.error('Error guardando pagos:', error);
       alert('❌ Error al guardar los pagos: ' + error.message);
@@ -1397,7 +1373,6 @@ function ClienteDetailModal({
     }
   };
 
-  // Calcular totales actualizados en tiempo real
   const mesesPagadosCount = mesesPagados.filter(p => p).length;
   const abonosActualizados = mesesPagadosCount * pagoMensual;
   const saldoActualizado = totalContrato - abonosActualizados;
@@ -1496,7 +1471,7 @@ function ClienteDetailModal({
                     </div>
                   ) : (
                     <div className="text-center py-8 text-gray-500">
-                      <div className="text-4xl mb-2">📭</div>
+                      <div className="text-4xl mb-2">🔭</div>
                       <p>Sin bodega asignada</p>
                     </div>
                   )}
@@ -1621,7 +1596,7 @@ function ClienteDetailModal({
             </div>
           )}
 
-          {/* TAB: PAGOS - INTERACTIVO */}
+          {/* TAB: PAGOS */}
           {activeTab === 'pagos' && (
             <div className="space-y-6">
               {/* Resumen Visual de Pagos */}
@@ -1631,7 +1606,7 @@ function ClienteDetailModal({
                   Estado de Pagos
                 </h3>
 
-                {/* Gráficos Circulares con valores actualizados */}
+                {/* Gráficos Circulares */}
                 <div className="grid grid-cols-3 gap-6 mb-6">
                   <CircularProgress
                     value={porcentajePagadoActualizado}
@@ -1668,7 +1643,7 @@ function ClienteDetailModal({
                 </div>
               </div>
 
-              {/* Desglose de Montos REAL */}
+              {/* Desglose de Montos */}
               <div className="grid grid-cols-3 gap-4">
                 <MontoCard
                   icon="📊"
@@ -1692,7 +1667,7 @@ function ClienteDetailModal({
                 />
               </div>
 
-              {/* 🆕 GESTIÓN MENSUAL DE PAGOS */}
+              {/* Gestión Mensual de Pagos */}
               <div className="bg-white rounded-xl p-6 border-2 border-blue-200">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-semibold text-lg flex items-center gap-2 text-gray-900">
@@ -1844,25 +1819,24 @@ function ClienteDetailModal({
 
       {/* Modal de Edición anidado */}
       {editModalOpen && (
-    <div className="fixed inset-0 bg-black/50 grid place-items-center p-4 z-[60]">
-      <EditClienteModal
-        cliente={cliente}
-        bodegas={bodegas}  // Ahora tiene acceso a las bodegas
-        onSave={(clienteActualizado) => {
-          onUpdate(clienteActualizado);
-          setEditModalOpen(false);
-          onClose();
-        }}
-        onClose={() => setEditModalOpen(false)}
-      />
-    </div>
-  )}
+        <div className="fixed inset-0 bg-black/50 grid place-items-center p-4 z-[60]">
+          <EditClienteModal
+            cliente={cliente}
+            bodegas={bodegas}
+            onSave={(clienteActualizado) => {
+              onUpdate(clienteActualizado);
+              setEditModalOpen(false);
+              onClose();
+            }}
+            onClose={() => setEditModalOpen(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }
 
-// ========== COMPONENTES AUXILIARES ACTUALIZADOS ==========
-
+// Componentes auxiliares para el modal de detalle
 function InfoRow({ label, value, icon, highlight }: { 
   label: string; 
   value: string; 
@@ -1995,133 +1969,3 @@ function DocumentCard({ title, icon, status, action }: {
   );
 }
 
-
-
-// ========== COMPONENTES AUXILIARES ==========
-// AGREGAR ESTOS COMPONENTES AL FINAL DEL ARCHIVO (después de ClienteDetailModal)
-
-function InfoRow({ label, value, icon, highlight }: { 
-  label: string; 
-  value: string; 
-  icon?: string; 
-  highlight?: boolean 
-}) {
-  return (
-    <div className={`flex items-start justify-between ${highlight ? 'bg-white p-2 rounded' : ''}`}>
-      <span className="text-sm text-gray-600 flex items-center gap-1">
-        {icon && <span>{icon}</span>}
-        {label}:
-      </span>
-      <span className={`text-sm font-medium text-right ml-2 ${highlight ? 'text-blue-600 text-base' : 'text-gray-900'}`}>
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function CircularProgress({ value, label, color, amount }: {
-  value: number;
-  label: string;
-  color: 'green' | 'amber' | 'red';
-  amount: string;
-}) {
-  const radius = 45;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (value / 100) * circumference;
-  
-  const colors = {
-    green: { stroke: '#10b981', bg: 'bg-green-100', text: 'text-green-700' },
-    amber: { stroke: '#f59e0b', bg: 'bg-amber-100', text: 'text-amber-700' },
-    red: { stroke: '#ef4444', bg: 'bg-red-100', text: 'text-red-700' },
-  };
-  
-  const theme = colors[color];
-  
-  return (
-    <div className="text-center">
-      <div className="relative inline-block">
-        <svg className="transform -rotate-90" width="120" height="120">
-          <circle
-            cx="60"
-            cy="60"
-            r={radius}
-            stroke="#e5e7eb"
-            strokeWidth="10"
-            fill="none"
-          />
-          <circle
-            cx="60"
-            cy="60"
-            r={radius}
-            stroke={theme.stroke}
-            strokeWidth="10"
-            fill="none"
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            strokeLinecap="round"
-            className="transition-all duration-500"
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-2xl font-bold text-gray-800">{value.toFixed(0)}%</span>
-        </div>
-      </div>
-      <div className={`mt-2 px-3 py-1 rounded-full text-sm font-medium inline-block ${theme.bg} ${theme.text}`}>
-        {label}
-      </div>
-      <div className="text-sm font-semibold text-gray-700 mt-1">{amount}</div>
-    </div>
-  );
-}
-
-function MontoCard({ icon, label, amount, color }: {
-  icon: string;
-  label: string;
-  amount: number;
-  color: 'blue' | 'green' | 'amber' | 'red';
-}) {
-  const colors = {
-    blue: 'from-blue-50 to-blue-100 border-blue-200',
-    green: 'from-green-50 to-green-100 border-green-200',
-    amber: 'from-amber-50 to-amber-100 border-amber-200',
-    red: 'from-red-50 to-red-100 border-red-200',
-  };
-  
-  return (
-    <div className={`bg-gradient-to-br ${colors[color]} rounded-xl p-5 border`}>
-      <div className="text-3xl mb-2">{icon}</div>
-      <div className="text-sm text-gray-600 mb-1">{label}</div>
-      <div className="text-2xl font-bold text-gray-900">
-        ${amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-      </div>
-      <div className="text-xs text-gray-500 mt-1">MXN</div>
-    </div>
-  );
-}
-
-function DocumentCard({ title, icon, status, action }: {
-  title: string;
-  icon: string;
-  status: 'disponible' | 'pendiente';
-  action: string;
-}) {
-  const statusColors = {
-    disponible: 'bg-green-100 text-green-800',
-    pendiente: 'bg-amber-100 text-amber-800',
-  };
-  
-  return (
-    <div className="bg-white rounded-lg p-4 border-2 border-gray-200 hover:border-blue-300 transition-colors">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-3xl">{icon}</span>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>
-          {status === 'disponible' ? 'Disponible' : 'Pendiente'}
-        </span>
-      </div>
-      <h4 className="font-medium text-gray-900 mb-3">{title}</h4>
-      <button className="w-full py-2 px-4 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium text-sm transition-colors">
-        {action}
-      </button>
-    </div>
-  );
-}
