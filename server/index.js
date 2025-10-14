@@ -77,7 +77,8 @@ const app = express();
 // -------------------- CORS --------------------
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://vbodegasf.onrender.com"
+  "https://vbodegasf.onrender.com",
+  "https://vbodegas.onrender.com"
 ];
 
 app.use(cors({
@@ -632,6 +633,37 @@ app.patch("/api/admin/clientes/:id", authMiddleware, async (req, res) => {
   } catch (e) {
     console.error("Error actualizando cliente:", e);
     res.status(500).json({ error: "Error actualizando cliente: " + e.message });
+  }
+});
+
+// Endpoint específico para actualizar pagos de un cliente
+app.patch("/api/admin/clientes/:id/pagos", authMiddleware, async (req, res) => {
+  try {
+    if (!["admin", "superadmin", "editor"].includes(req.user.rol)) {
+      return res.status(403).json({ error: "Solo admins pueden actualizar pagos" });
+    }
+
+    const { abonos, saldo, vencido_hoy } = req.body;
+    
+    await query.run(`
+      UPDATE clientes 
+      SET abonos=?, saldo=?, vencido_hoy=?
+      WHERE id=?
+    `, [abonos || 0, saldo || 0, vencido_hoy || 0, req.params.id]);
+    
+    // Broadcast del cambio
+    broadcast("log", {
+      type: "pagos_actualizados",
+      clienteId: req.params.id,
+      user: req.user?.email || "admin",
+      timestamp: new Date().toISOString(),
+      cambios: { abonos, saldo, vencido_hoy }
+    });
+    
+    res.json({ ok: true, mensaje: "Pagos actualizados correctamente" });
+  } catch (e) {
+    console.error("Error actualizando pagos:", e);
+    res.status(500).json({ error: "Error actualizando pagos: " + e.message });
   }
 });
 

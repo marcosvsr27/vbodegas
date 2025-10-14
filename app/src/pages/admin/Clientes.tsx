@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   getClientes,
   updateCliente,
+  updateClientePagos,  // 🆕 AGREGAR ESTA LÍNEA
   deleteCliente,
   createCliente,
   sendRecordatorio,
@@ -499,13 +500,16 @@ export default function Clientes() {
         )}
       </div>
 
-     {/* Modal Ver Cliente */}
+{/* Modal Ver Cliente */}
 {modal && (
   <ClienteDetailModal
-    cliente={modal} 
-    onClose={() => setModal(null)} 
+    cliente={modal}
+    bodegas={bodegas}  // 🆕 AGREGAR ESTA LÍNEA
+    onClose={() => setModal(null)}
+    onUpdate={onUpdate}  // 🆕 AGREGAR ESTA LÍNEA
   />
 )}
+
 
       {/* Modal Crear Cliente */}
       {createModal && (
@@ -1303,16 +1307,31 @@ function ImportCSVModal({
 
 // ========== COMPONENTE DE DETALLE MEJORADO ==========
 // ========== REEMPLAZA EL ClienteDetailModal COMPLETO ==========
-// Busca la función ClienteDetailModal en tu archivo y reemplázala con este código
-
-function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: () => void }) {
+function ClienteDetailModal({ 
+  cliente, 
+  bodegas,     // 🆕 AGREGAR
+  onClose,
+  onUpdate     // 🆕 AGREGAR
+}: { 
+  cliente: Cliente; 
+  bodegas: Bodega[];    // 🆕 AGREGAR
+  onClose: () => void;
+  onUpdate: (cliente: Cliente) => void;  // 🆕 AGREGAR
+}) {
   const [activeTab, setActiveTab] = useState<'general' | 'contrato' | 'pagos' | 'documentos'>('general');
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  
+  // Estados para gestión de pagos
+  const [mesesPagados, setMesesPagados] = useState<boolean[]>([]);
+  const [guardandoPagos, setGuardandoPagos] = useState(false);
 
   // Cálculos para gráficos
   const totalContrato = cliente.cargos || 0;
   const pagado = cliente.abonos || 0;
   const porVencer = cliente.saldo || 0;
   const vencido = cliente.vencido_hoy || 0;
+  const pagoMensual = cliente.pago_mensual || 0;
+  const duracionMeses = cliente.duracion_meses || 12;
   
   const porcentajePagado = totalContrato > 0 ? (pagado / totalContrato) * 100 : 0;
   const porcentajeVencido = totalContrato > 0 ? (vencido / totalContrato) * 100 : 0;
@@ -1327,6 +1346,62 @@ function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: (
 
   const diasRestantes = cliente.fecha_expiracion ? 
     dayjs(cliente.fecha_expiracion).diff(dayjs(), 'day') : null;
+
+  // Inicializar estados de pagos basándose en los abonos
+  useEffect(() => {
+    if (pagoMensual > 0) {
+      // Calcular cuántos meses están pagados basándose en los abonos
+      const mesesPagadosCalculados = Math.floor(pagado / pagoMensual);
+      const estadosMeses = Array(duracionMeses).fill(false).map((_, index) => index < mesesPagadosCalculados);
+      setMesesPagados(estadosMeses);
+    }
+  }, [pagado, pagoMensual, duracionMeses]);
+
+  // Función para marcar/desmarcar un mes como pagado
+  const toggleMesPagado = (index: number) => {
+    const nuevoEstado = [...mesesPagados];
+    nuevoEstado[index] = !nuevoEstado[index];
+    setMesesPagados(nuevoEstado);
+  };
+
+  // Función para liquidar todo el contrato
+  const liquidarTodo = () => {
+    if (confirm('¿Confirmas que el cliente liquidó todo el contrato?')) {
+      setMesesPagados(Array(duracionMeses).fill(true));
+    }
+  };
+
+  // Función para guardar cambios de pagos
+  const guardarPagos = async () => {
+    setGuardandoPagos(true);
+    try {
+      const mesesPagadosCount = mesesPagados.filter(p => p).length;
+      const nuevosAbonos = mesesPagadosCount * pagoMensual;
+      const nuevoSaldo = totalContrato - nuevosAbonos;
+      
+      // Calcular vencido_hoy basado en fecha actual
+      const vencidoHoy = (diasRestantes && diasRestantes < 0 && nuevoSaldo > 0) 
+        ? nuevoSaldo 
+        : 0;
+  
+      // Usar la función específica de pagos
+      await updateClientePagos(cliente.id, nuevosAbonos, nuevoSaldo, vencidoHoy);
+  
+      alert('✅ Pagos actualizados correctamente');
+      window.location.reload(); // Recargar para ver cambios
+    } catch (error: any) {
+      console.error('Error guardando pagos:', error);
+      alert('❌ Error al guardar los pagos: ' + error.message);
+    } finally {
+      setGuardandoPagos(false);
+    }
+  };
+
+  // Calcular totales actualizados en tiempo real
+  const mesesPagadosCount = mesesPagados.filter(p => p).length;
+  const abonosActualizados = mesesPagadosCount * pagoMensual;
+  const saldoActualizado = totalContrato - abonosActualizados;
+  const porcentajePagadoActualizado = totalContrato > 0 ? (abonosActualizados / totalContrato) * 100 : 0;
 
   return (
     <div className="fixed inset-0 bg-black/50 grid place-items-center p-4 z-50 overflow-y-auto">
@@ -1382,7 +1457,6 @@ function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: (
           {/* TAB: GENERAL */}
           {activeTab === 'general' && (
             <div className="space-y-6">
-              {/* Info Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Datos Personales */}
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
@@ -1456,7 +1530,6 @@ function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: (
           {/* TAB: CONTRATO */}
           {activeTab === 'contrato' && (
             <div className="space-y-6">
-              {/* Timeline del Contrato */}
               <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
                 <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-green-900">
                   <span className="text-2xl">⏱️</span>
@@ -1511,7 +1584,6 @@ function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: (
                 )}
               </div>
 
-              {/* Detalles del Contrato */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white rounded-xl p-5 border-2 border-gray-200">
                   <h4 className="font-semibold mb-4 text-gray-900">Detalles del Contrato</h4>
@@ -1549,7 +1621,7 @@ function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: (
             </div>
           )}
 
-          {/* TAB: PAGOS */}
+          {/* TAB: PAGOS - INTERACTIVO */}
           {activeTab === 'pagos' && (
             <div className="space-y-6">
               {/* Resumen Visual de Pagos */}
@@ -1559,19 +1631,19 @@ function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: (
                   Estado de Pagos
                 </h3>
 
-                {/* Gráficos Circulares */}
+                {/* Gráficos Circulares con valores actualizados */}
                 <div className="grid grid-cols-3 gap-6 mb-6">
                   <CircularProgress
-                    value={porcentajePagado}
+                    value={porcentajePagadoActualizado}
                     label="Pagado"
                     color="green"
-                    amount={`$${pagado.toLocaleString('es-MX')}`}
+                    amount={`$${abonosActualizados.toLocaleString('es-MX')}`}
                   />
                   <CircularProgress
-                    value={porcentajePorVencer}
-                    label="Por Vencer"
+                    value={totalContrato > 0 ? (saldoActualizado / totalContrato) * 100 : 0}
+                    label="Saldo Pendiente"
                     color="amber"
-                    amount={`$${porVencer.toLocaleString('es-MX')}`}
+                    amount={`$${saldoActualizado.toLocaleString('es-MX')}`}
                   />
                   <CircularProgress
                     value={porcentajeVencido}
@@ -1585,29 +1657,19 @@ function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: (
                 <div className="bg-white rounded-lg p-4">
                   <div className="flex justify-between mb-2">
                     <span className="text-sm font-medium text-gray-700">Progreso Total de Pagos</span>
-                    <span className="text-sm font-bold text-indigo-600">{porcentajePagado.toFixed(1)}%</span>
+                    <span className="text-sm font-bold text-indigo-600">{porcentajePagadoActualizado.toFixed(1)}%</span>
                   </div>
                   <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full flex">
-                      <div 
-                        className="bg-green-500"
-                        style={{ width: `${porcentajePagado}%` }}
-                      />
-                      <div 
-                        className="bg-amber-500"
-                        style={{ width: `${porcentajePorVencer}%` }}
-                      />
-                      <div 
-                        className="bg-red-500"
-                        style={{ width: `${porcentajeVencido}%` }}
-                      />
-                    </div>
+                    <div 
+                      className="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all"
+                      style={{ width: `${porcentajePagadoActualizado}%` }}
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* Desglose de Montos */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* Desglose de Montos REAL */}
+              <div className="grid grid-cols-3 gap-4">
                 <MontoCard
                   icon="📊"
                   label="Total del Contrato"
@@ -1617,21 +1679,108 @@ function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: (
                 <MontoCard
                   icon="✅"
                   label="Total Abonado"
-                  amount={pagado}
+                  amount={abonosActualizados}
                   color="green"
+                  updated={abonosActualizados !== pagado}
                 />
                 <MontoCard
                   icon="⏰"
-                  label="Saldo por Vencer"
-                  amount={porVencer}
+                  label="Saldo Pendiente"
+                  amount={saldoActualizado}
                   color="amber"
+                  updated={saldoActualizado !== porVencer}
                 />
-                <MontoCard
-                  icon="⚠️"
-                  label="Saldo Vencido"
-                  amount={vencido}
-                  color="red"
-                />
+              </div>
+
+              {/* 🆕 GESTIÓN MENSUAL DE PAGOS */}
+              <div className="bg-white rounded-xl p-6 border-2 border-blue-200">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-semibold text-lg flex items-center gap-2 text-gray-900">
+                    <span className="text-2xl">📅</span>
+                    Gestión de Pagos Mensuales
+                  </h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={liquidarTodo}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                    >
+                      ✓ Liquidar Todo
+                    </button>
+                    <button
+                      onClick={guardarPagos}
+                      disabled={guardandoPagos}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
+                    >
+                      {guardandoPagos ? 'Guardando...' : '💾 Guardar Cambios'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-blue-50 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-blue-800">
+                      <strong>📌 Instrucciones:</strong> Haz clic en cada mes para marcarlo como pagado/no pagado. 
+                      Los cambios se guardarán al hacer clic en "Guardar Cambios".
+                    </p>
+                  </div>
+
+                  {/* Timeline de Meses */}
+                  <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    {Array.from({ length: duracionMeses }).map((_, index) => {
+                      const fechaMes = cliente.fecha_inicio 
+                        ? dayjs(cliente.fecha_inicio).add(index, 'month')
+                        : null;
+                      const isPagado = mesesPagados[index];
+                      
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => toggleMesPagado(index)}
+                          className={`p-4 rounded-xl border-2 transition-all hover:scale-105 ${
+                            isPagado
+                              ? 'bg-green-100 border-green-500 text-green-800'
+                              : 'bg-gray-50 border-gray-300 text-gray-600 hover:border-blue-400'
+                          }`}
+                        >
+                          <div className="text-2xl mb-1">
+                            {isPagado ? '✅' : '⏳'}
+                          </div>
+                          <div className="text-xs font-semibold mb-1">
+                            Mes {index + 1}
+                          </div>
+                          {fechaMes && (
+                            <div className="text-xs">
+                              {fechaMes.format('MMM YYYY')}
+                            </div>
+                          )}
+                          <div className="text-xs font-medium mt-1">
+                            ${pagoMensual.toLocaleString('es-MX')}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Resumen de Pagos */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mt-4">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">{mesesPagadosCount}</div>
+                        <div className="text-xs text-gray-600">Meses Pagados</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-amber-600">{duracionMeses - mesesPagadosCount}</div>
+                        <div className="text-xs text-gray-600">Meses Pendientes</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-blue-600">
+                          {((mesesPagadosCount / duracionMeses) * 100).toFixed(0)}%
+                        </div>
+                        <div className="text-xs text-gray-600">Completado</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1685,19 +1834,168 @@ function ClienteDetailModal({ cliente, onClose }: { cliente: Cliente; onClose: (
             Cerrar
           </button>
           <button
-            onClick={() => {
-              onClose();
-              // Aquí puedes agregar la lógica para abrir el modal de edición
-            }}
+            onClick={() => setEditModalOpen(true)}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
           >
-            Editar Cliente
+            ✏️ Editar Cliente
           </button>
         </div>
       </div>
+
+      {/* Modal de Edición anidado */}
+      {editModalOpen && (
+    <div className="fixed inset-0 bg-black/50 grid place-items-center p-4 z-[60]">
+      <EditClienteModal
+        cliente={cliente}
+        bodegas={bodegas}  // Ahora tiene acceso a las bodegas
+        onSave={(clienteActualizado) => {
+          onUpdate(clienteActualizado);
+          setEditModalOpen(false);
+          onClose();
+        }}
+        onClose={() => setEditModalOpen(false)}
+      />
+    </div>
+  )}
     </div>
   );
 }
+
+// ========== COMPONENTES AUXILIARES ACTUALIZADOS ==========
+
+function InfoRow({ label, value, icon, highlight }: { 
+  label: string; 
+  value: string; 
+  icon?: string; 
+  highlight?: boolean 
+}) {
+  return (
+    <div className={`flex items-start justify-between ${highlight ? 'bg-white p-2 rounded' : ''}`}>
+      <span className="text-sm text-gray-600 flex items-center gap-1">
+        {icon && <span>{icon}</span>}
+        {label}:
+      </span>
+      <span className={`text-sm font-medium text-right ml-2 ${highlight ? 'text-blue-600 text-base' : 'text-gray-900'}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function CircularProgress({ value, label, color, amount }: {
+  value: number;
+  label: string;
+  color: 'green' | 'amber' | 'red';
+  amount: string;
+}) {
+  const radius = 45;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (value / 100) * circumference;
+  
+  const colors = {
+    green: { stroke: '#10b981', bg: 'bg-green-100', text: 'text-green-700' },
+    amber: { stroke: '#f59e0b', bg: 'bg-amber-100', text: 'text-amber-700' },
+    red: { stroke: '#ef4444', bg: 'bg-red-100', text: 'text-red-700' },
+  };
+  
+  const theme = colors[color];
+  
+  return (
+    <div className="text-center">
+      <div className="relative inline-block">
+        <svg className="transform -rotate-90" width="120" height="120">
+          <circle
+            cx="60"
+            cy="60"
+            r={radius}
+            stroke="#e5e7eb"
+            strokeWidth="10"
+            fill="none"
+          />
+          <circle
+            cx="60"
+            cy="60"
+            r={radius}
+            stroke={theme.stroke}
+            strokeWidth="10"
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            className="transition-all duration-500"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-2xl font-bold text-gray-800">{value.toFixed(0)}%</span>
+        </div>
+      </div>
+      <div className={`mt-2 px-3 py-1 rounded-full text-sm font-medium inline-block ${theme.bg} ${theme.text}`}>
+        {label}
+      </div>
+      <div className="text-sm font-semibold text-gray-700 mt-1">{amount}</div>
+    </div>
+  );
+}
+
+function MontoCard({ icon, label, amount, color, updated }: {
+  icon: string;
+  label: string;
+  amount: number;
+  color: 'blue' | 'green' | 'amber' | 'red';
+  updated?: boolean;
+}) {
+  const colors = {
+    blue: 'from-blue-50 to-blue-100 border-blue-200',
+    green: 'from-green-50 to-green-100 border-green-200',
+    amber: 'from-amber-50 to-amber-100 border-amber-200',
+    red: 'from-red-50 to-red-100 border-red-200',
+  };
+  
+  return (
+    <div className={`bg-gradient-to-br ${colors[color]} rounded-xl p-5 border relative`}>
+      {updated && (
+        <div className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 text-xs px-2 py-1 rounded-full font-semibold">
+          Actualizado
+        </div>
+      )}
+      <div className="text-3xl mb-2">{icon}</div>
+      <div className="text-sm text-gray-600 mb-1">{label}</div>
+      <div className="text-2xl font-bold text-gray-900">
+        ${amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+      </div>
+      <div className="text-xs text-gray-500 mt-1">MXN</div>
+    </div>
+  );
+}
+
+function DocumentCard({ title, icon, status, action }: {
+  title: string;
+  icon: string;
+  status: 'disponible' | 'pendiente';
+  action: string;
+}) {
+  const statusColors = {
+    disponible: 'bg-green-100 text-green-800',
+    pendiente: 'bg-amber-100 text-amber-800',
+  };
+  
+  return (
+    <div className="bg-white rounded-lg p-4 border-2 border-gray-200 hover:border-blue-300 transition-colors">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-3xl">{icon}</span>
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[status]}`}>
+          {status === 'disponible' ? 'Disponible' : 'Pendiente'}
+        </span>
+      </div>
+      <h4 className="font-medium text-gray-900 mb-3">{title}</h4>
+      <button className="w-full py-2 px-4 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium text-sm transition-colors">
+        {action}
+      </button>
+    </div>
+  );
+}
+
+
 
 // ========== COMPONENTES AUXILIARES ==========
 // AGREGAR ESTOS COMPONENTES AL FINAL DEL ARCHIVO (después de ClienteDetailModal)

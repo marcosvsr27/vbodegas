@@ -283,6 +283,26 @@ export async function updateCliente(id: string, data: any) {
   return r.json();
 }
 
+// Función específica para actualizar pagos de un cliente
+export async function updateClientePagos(
+  clienteId: string, 
+  abonos: number, 
+  saldo: number, 
+  vencido_hoy: number
+) {
+  const r = await baseFetch(`/admin/clientes/${clienteId}/pagos`, {
+    method: "PATCH",
+    body: JSON.stringify({ abonos, saldo, vencido_hoy }),
+  });
+  
+  if (!r.ok) {
+    const error = await r.json();
+    throw new Error(error.error || "Error actualizando pagos");
+  }
+  
+  return r.json();
+}
+
 export async function deleteCliente(id: string) {
   const r = await baseFetch(`/admin/clientes/${id}`, { method: "DELETE" });
   if (!r.ok) throw new Error("Error eliminando cliente");

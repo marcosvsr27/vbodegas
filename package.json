@@ -7,11 +7,13 @@
     "install-all": "npm install --prefix app && npm install --prefix server"
   },
   "devDependencies": {
+    "@types/papaparse": "^5.3.16",
     "concurrently": "^8.2.2"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "dayjs": "^1.11.18",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "papaparse": "^5.5.3"
   }
 }
