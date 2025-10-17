@@ -401,7 +401,7 @@ export default function Catalogo() {
             </h2>
 
             <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-12 font-light leading-relaxed">
-               Visualiza, compara, conquista.
+               Visualiza, compara, reserva.
             </p>
 
             <div className="flex justify-center gap-4">
