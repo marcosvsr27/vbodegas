@@ -390,7 +390,7 @@ export default function Catalogo() {
           <div className="cinematic-fade">
             <div className="mb-8">
               <span className="inline-block px-4 py-2 bg-emerald-100 border border-emerald-400 rounded-full text-emerald-700 font-black text-sm uppercase tracking-widest">
-                Catálogo 2024
+                Catálogo 2025
               </span>
             </div>
 
@@ -415,16 +415,12 @@ export default function Catalogo() {
           </div>
 
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20">
-            <div className="animate-bounce text-emerald-600 font-black text-sm">DESPLAZA</div>
           </div>
         </div>
       </section>
 
       {/* Divider Section */}
       <section className="relative h-40 flex items-center justify-center overflow-hidden border-t border-b border-gray-200 bg-white">
-        <h3 className="text-5xl md:text-7xl font-black text-gray-100 absolute text-center pointer-events-none">
-          PERSONALIZA
-        </h3>
         <div className="relative z-10 text-center">
           <span className="inline-block px-6 py-3 bg-emerald-100 border border-emerald-400 rounded-full text-emerald-700 font-black text-lg uppercase tracking-widest">
             ↓ FILTROS AVANZADOS ↓
@@ -582,9 +578,9 @@ export default function Catalogo() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { icon: "◆", title: "BÚSQUEDA INTELIGENTE", desc: "IA que entiende tus necesidades", delay: "stagger-1" },
-              { icon: "◆", title: "VELOCIDAD", desc: "Reserva en segundos, no minutos", delay: "stagger-2" },
-              { icon: "◆", title: "TRANSPARENCIA", desc: "Sin sorpresas, todo visible", delay: "stagger-3" },
+              { icon: "◆", title: "SEGURIDAD", desc: "Vigilancia 24/7", delay: "stagger-1" },
+              { icon: "◆", title: "CALIDAD", desc: "La mejor calidad estructural como grupo Heva lo saber hacer, Eco-friendly y Protección contra inundaciones", delay: "stagger-2" },
+              { icon: "◆", title: "FLEXIBILIDAD", desc: "Nos adaptamos a tus necesidades.", delay: "stagger-3" },
             ].map((b, i) => (
               <div key={i} className={`group border-2 border-gray-200 rounded-xl p-8 hover:border-emerald-400 transition-all bg-white hover:bg-emerald-50/50 float-up ${b.delay}`}>
                 <div className="text-4xl font-black text-emerald-600 mb-4">{b.icon}</div>
