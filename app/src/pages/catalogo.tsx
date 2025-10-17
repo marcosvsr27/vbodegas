@@ -1,5 +1,4 @@
 // app/src/pages/catalogo.tsx
-// app/src/pages/catalogo.tsx
 import { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import { loadStripe } from "@stripe/stripe-js"
 import { fetchBodegas } from "../api"
@@ -286,7 +285,7 @@ export default function Catalogo() {
         .glow { animation: glow-pulse 3s ease-in-out infinite; }
       `}</style>
 
-      {/* Header */}
+      {/* Fixed Header */}
       <header className="fixed top-0 w-full z-50 backdrop-blur-2xl bg-white/80 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -328,7 +327,6 @@ export default function Catalogo() {
       </header>
 
       <div className="max-w-7xl mx-auto px-6 py-8 pt-24">
-        {/* Filtro de Volumen Activo */}
         {filtroVolumen !== null && (
           <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
             <div className="flex items-center justify-between">
@@ -363,8 +361,8 @@ export default function Catalogo() {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Selector de Planta */}
             <div className="lg:col-span-2 border-2 border-emerald-200 rounded-2xl p-8 bg-emerald-50 hover:border-emerald-400 transition-all">
-              <h3 className="text-sm font-semibold text-emerald-700 mb-3 uppercase tracking-wide font-black">Selecciona Planta</h3>
-              <div className="flex gap-3">
+              <h3 className="text-sm font-black text-emerald-700 uppercase tracking-widest mb-6">Selecciona Planta</h3>
+              <div className="flex gap-4">
                 <button
                   onClick={() => setPlanta("baja")}
                   className={`flex-1 py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
@@ -406,11 +404,11 @@ export default function Catalogo() {
 
           {/* Filtros de Estado */}
           <div className="mt-8 pt-8 border-t border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide font-black">Filtrar por Estado</h3>
+            <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest mb-4">Filtrar por Estado</h3>
             <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => setActivos({ ...activos, disponible: !activos.disponible })}
-                className={`py-3 px-4 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
+                className={`py-3 px-4 rounded-xl font-black transition-all duration-300 flex items-center justify-center gap-2 uppercase text-sm tracking-wider ${
                   activos.disponible
                     ? "bg-emerald-100 text-emerald-700 border-2 border-emerald-500 shadow-md"
                     : "bg-gray-100 text-gray-400 border-2 border-gray-200"
@@ -422,7 +420,7 @@ export default function Catalogo() {
               </button>
               <button
                 onClick={() => setActivos({ ...activos, apartada: !activos.apartada })}
-                className={`py-3 px-4 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
+                className={`py-3 px-4 rounded-xl font-black transition-all duration-300 flex items-center justify-center gap-2 uppercase text-sm tracking-wider ${
                   activos.apartada
                     ? "bg-amber-100 text-amber-700 border-2 border-amber-500 shadow-md"
                     : "bg-gray-100 text-gray-400 border-2 border-gray-200"
@@ -434,7 +432,7 @@ export default function Catalogo() {
               </button>
               <button
                 onClick={() => setActivos({ ...activos, rentada: !activos.rentada })}
-                className={`py-3 px-4 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
+                className={`py-3 px-4 rounded-xl font-black transition-all duration-300 flex items-center justify-center gap-2 uppercase text-sm tracking-wider ${
                   activos.rentada
                     ? "bg-red-100 text-red-700 border-2 border-red-500 shadow-md"
                     : "bg-gray-100 text-gray-400 border-2 border-gray-200"
@@ -451,7 +449,7 @@ export default function Catalogo() {
         {/* Plano Interactivo */}
         <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 overflow-hidden">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-bold text-gray-900">Plano Interactivo</h3>
+            <h3 className="text-lg font-black text-gray-900">Plano Interactivo</h3>
             <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
               Haz clic en una bodega para más información
             </span>
