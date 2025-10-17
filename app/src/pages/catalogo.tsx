@@ -363,18 +363,18 @@ export default function Catalogo() {
           <div className="cinematic-fade">
             <div className="mb-8">
               <span className="inline-block px-4 py-2 bg-emerald-100 border border-emerald-400 rounded-full text-emerald-700 font-black text-sm uppercase tracking-widest">
-                Catálogo 2024
+                Catálogo 2025
               </span>
             </div>
 
             <h2 className="text-7xl md:text-8xl lg:text-9xl font-black leading-none mb-6 tracking-tighter text-gray-900">
-              <span className="text-reveal">ESPACIO</span>
+              <span className="text-reveal">EL ESPACIO QUE</span>
               <br />
-              <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 bg-clip-text text-transparent text-reveal">INFINITO</span>
+              <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 bg-clip-text text-transparent text-reveal">NECESITAS</span>
             </h2>
 
             <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-12 font-light leading-relaxed">
-              Experiencia inmersiva en búsqueda de espacios. Visualiza, compara, conquista.
+               Visualiza, compara, reserva.
             </p>
 
             <div className="flex justify-center gap-4">
@@ -553,9 +553,9 @@ export default function Catalogo() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { icon: "◆", title: "BÚSQUEDA INTELIGENTE", desc: "IA que entiende tus necesidades", delay: "stagger-1" },
-              { icon: "◆", title: "VELOCIDAD", desc: "Reserva en segundos, no minutos", delay: "stagger-2" },
-              { icon: "◆", title: "TRANSPARENCIA", desc: "Sin sorpresas, todo visible", delay: "stagger-3" },
+              { icon: "◆", title: "SEGURIDAD", desc: "Vigilancia 24/7", delay: "stagger-1" },
+              { icon: "◆", title: "CALIDAD", desc: "Eco-friendly, Calidad Constructiva, Protección contra inundaciones", delay: "stagger-2" },
+              { icon: "◆", title: "FLEXIBILIDAD", desc: "Nos adaptamos a tus necesidades.", delay: "stagger-3" },
             ].map((b, i) => (
               <div key={i} className={`group border-2 border-gray-200 rounded-xl p-8 hover:border-emerald-400 transition-all bg-white hover:bg-emerald-50/50 float-up ${b.delay}`}>
                 <div className="text-4xl font-black text-emerald-600 mb-4">{b.icon}</div>
