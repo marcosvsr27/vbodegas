@@ -294,22 +294,41 @@ export default function Catalogo() {
           0% { clip-path: inset(0 100% 0 0); }
           100% { clip-path: inset(0 0 0 0); }
         }
+        @keyframes shimmer {
+          0%, 100% { background-position: 200% center; }
+          50% { background-position: -200% center; }
+        }
+        @keyframes pulse-ring {
+          0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+          70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        @keyframes slide-in-right {
+          0% { opacity: 0; transform: translateX(60px); }
+          100% { opacity: 1; transform: translateX(0); }
+        }
         .cinematic-fade { animation: cinematic-fade 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
         .slide-in-left { animation: slide-in-left 0.8s ease-out forwards; }
+        .slide-in-right { animation: slide-in-right 0.8s ease-out forwards; }
         .glow { animation: glow-pulse 3s ease-in-out infinite; }
         .float-up { animation: float-up 0.8s ease-out forwards; }
         .text-reveal { animation: text-reveal 1s ease-out forwards; }
+        .shimmer { animation: shimmer 3s infinite; background-size: 200% auto; }
+        .pulse-ring { animation: pulse-ring 2s infinite; }
         .stagger-1 { animation-delay: 0.1s; }
         .stagger-2 { animation-delay: 0.2s; }
         .stagger-3 { animation-delay: 0.3s; }
         .stagger-4 { animation-delay: 0.4s; }
+        .stagger-5 { animation-delay: 0.5s; }
+        .group-hover\:scale-110:hover { transform: scale(1.1); }
+        button { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
       `}</style>
 
       {/* Fixed Header */}
       <header className="fixed top-0 w-full z-50 backdrop-blur-2xl bg-white/80 border-b border-gray-200/50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center glow">
+          <div className="flex items-center gap-3 slide-in-left">
+            <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center glow pulse-ring">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
@@ -317,12 +336,20 @@ export default function Catalogo() {
             <h1 className="text-2xl font-black tracking-tighter text-gray-900">V<span className="text-emerald-600">BODEGAS</span></h1>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 slide-in-right">
+            <a href="/admin" className="px-4 py-2.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg font-bold text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg">
+              ADMIN
+            </a>
+            
+            <a href="/cliente/login" className="px-4 py-2.5 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-bold text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg">
+              LOGIN
+            </a>
+
             <button
               onClick={() => setCalculadoraOpen(true)}
-              className="relative bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 flex items-center gap-2"
+              className="relative bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 hover:scale-105 flex items-center gap-2 group"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
               Calculadora
@@ -330,14 +357,14 @@ export default function Catalogo() {
             
             <button
               onClick={() => setCartOpen(true)}
-              className="relative bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:-translate-y-0.5 flex items-center gap-2"
+              className="relative bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:-translate-y-0.5 hover:scale-105 flex items-center gap-2 group"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
               Carrito
               {cart.length > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-pulse">
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-black rounded-full w-6 h-6 flex items-center justify-center animate-pulse pulse-ring">
                   {cart.length}
                 </span>
               )}
@@ -363,18 +390,18 @@ export default function Catalogo() {
           <div className="cinematic-fade">
             <div className="mb-8">
               <span className="inline-block px-4 py-2 bg-emerald-100 border border-emerald-400 rounded-full text-emerald-700 font-black text-sm uppercase tracking-widest">
-                Catálogo 2025
+                Catálogo 2024
               </span>
             </div>
 
             <h2 className="text-7xl md:text-8xl lg:text-9xl font-black leading-none mb-6 tracking-tighter text-gray-900">
-              <span className="text-reveal">EL ESPACIO QUE</span>
+              <span className="text-reveal">ESPACIO</span>
               <br />
-              <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 bg-clip-text text-transparent text-reveal">NECESITAS</span>
+              <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 bg-clip-text text-transparent text-reveal">INFINITO</span>
             </h2>
 
             <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-12 font-light leading-relaxed">
-               Visualiza, compara, reserva.
+              Experiencia inmersiva en búsqueda de espacios. Visualiza, compara, conquista.
             </p>
 
             <div className="flex justify-center gap-4">
@@ -410,36 +437,37 @@ export default function Catalogo() {
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Plant Selector */}
-            <div className="lg:col-span-2 border-2 border-emerald-200 rounded-2xl p-8 backdrop-blur-sm bg-emerald-50 hover:border-emerald-400 transition-all float-up stagger-1">
+            <div className="lg:col-span-2 border-2 border-emerald-200 rounded-2xl p-8 backdrop-blur-sm bg-emerald-50 hover:border-emerald-400 transition-all float-up stagger-1 hover:shadow-2xl hover:shadow-emerald-200/50">
               <h4 className="text-sm font-black text-emerald-700 uppercase tracking-widest mb-6">Selecciona Nivel</h4>
               <div className="flex gap-4">
                 {["baja", "alta"].map(p => (
                   <button
                     key={p}
                     onClick={() => setPlanta(p)}
-                    className={`flex-1 py-6 px-8 rounded-xl font-black text-xl transition-all ${
+                    className={`flex-1 py-6 px-8 rounded-xl font-black text-xl transition-all group relative overflow-hidden ${
                       planta === p
                         ? "bg-emerald-600 text-white shadow-2xl shadow-emerald-600/30 scale-105"
                         : "bg-white text-gray-700 border-2 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50"
                     }`}
                   >
-                    {p === "baja" ? "PLANTA BAJA" : "PLANTA ALTA"}
+                    <span className="relative z-10">{p === "baja" ? "PLANTA BAJA" : "PLANTA ALTA"}</span>
+                    {planta === p && <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20 animate-pulse" />}
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Stats Box */}
-            <div className="border-2 border-blue-200 rounded-2xl p-8 backdrop-blur-sm bg-blue-50 float-up stagger-2">
+            <div className="border-2 border-blue-200 rounded-2xl p-8 backdrop-blur-sm bg-blue-50 float-up stagger-2 hover:shadow-2xl hover:shadow-blue-200/50 transition-all group">
               <h4 className="text-sm font-black text-blue-700 uppercase tracking-widest mb-6">Disponibilidad</h4>
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center group-hover:translate-x-1 transition-transform">
                   <span className="text-gray-600 font-bold">Total:</span>
-                  <span className="text-2xl font-black text-gray-900">{stats.total}</span>
+                  <span className="text-2xl font-black text-gray-900 shimmer bg-gradient-to-r from-gray-900 via-gray-600 to-gray-900">{stats.total}</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center group-hover:translate-x-1 transition-transform">
                   <span className="text-emerald-700 font-bold">Disponibles:</span>
-                  <span className="text-2xl font-black text-emerald-600">{stats.disponible}</span>
+                  <span className="text-2xl font-black text-emerald-600 shimmer bg-gradient-to-r from-emerald-600 via-emerald-400 to-emerald-600">{stats.disponible}</span>
                 </div>
               </div>
             </div>
@@ -457,20 +485,21 @@ export default function Catalogo() {
                 onClick={() => setActivos({ ...activos, [s.key]: !activos[s.key] })}
                 className={`group relative py-8 px-6 rounded-xl font-black text-lg uppercase tracking-wider transition-all overflow-hidden float-up ${
                   i === 0 ? "stagger-1" : i === 1 ? "stagger-2" : "stagger-3"
-                } ${
+                } hover:scale-105 hover:shadow-2xl ${
                   activos[s.key]
                     ? s.key === "disponible" 
-                      ? "bg-emerald-100 border-2 border-emerald-500 text-emerald-700 shadow-lg"
+                      ? "bg-emerald-100 border-2 border-emerald-500 text-emerald-700 shadow-lg hover:shadow-emerald-300/50"
                       : s.key === "apartada"
-                      ? "bg-amber-100 border-2 border-amber-500 text-amber-700 shadow-lg"
-                      : "bg-red-100 border-2 border-red-500 text-red-700 shadow-lg"
+                      ? "bg-amber-100 border-2 border-amber-500 text-amber-700 shadow-lg hover:shadow-amber-300/50"
+                      : "bg-red-100 border-2 border-red-500 text-red-700 shadow-lg hover:shadow-red-300/50"
                     : "bg-gray-50 border-2 border-gray-200 text-gray-500 hover:border-gray-300"
                 }`}
               >
                 <div className="relative z-10">
-                  <div className="text-3xl font-black mb-2">{s.count}</div>
+                  <div className="text-3xl font-black mb-2 group-hover:scale-110 transition-transform">{s.count}</div>
                   <div className="text-xs">{s.label}</div>
                 </div>
+                {activos[s.key] && <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity bg-white" />}
               </button>
             ))}
           </div>
@@ -553,9 +582,9 @@ export default function Catalogo() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { icon: "◆", title: "SEGURIDAD", desc: "Vigilancia 24/7", delay: "stagger-1" },
-              { icon: "◆", title: "CALIDAD", desc: "La mejor calidad estructural como grupo Heva lo saber hacer, Eco-friendly y Protección contra inundaciones", delay: "stagger-2" },
-              { icon: "◆", title: "FLEXIBILIDAD", desc: "Nos adaptamos a tus necesidades.", delay: "stagger-3" },
+              { icon: "◆", title: "BÚSQUEDA INTELIGENTE", desc: "IA que entiende tus necesidades", delay: "stagger-1" },
+              { icon: "◆", title: "VELOCIDAD", desc: "Reserva en segundos, no minutos", delay: "stagger-2" },
+              { icon: "◆", title: "TRANSPARENCIA", desc: "Sin sorpresas, todo visible", delay: "stagger-3" },
             ].map((b, i) => (
               <div key={i} className={`group border-2 border-gray-200 rounded-xl p-8 hover:border-emerald-400 transition-all bg-white hover:bg-emerald-50/50 float-up ${b.delay}`}>
                 <div className="text-4xl font-black text-emerald-600 mb-4">{b.icon}</div>
