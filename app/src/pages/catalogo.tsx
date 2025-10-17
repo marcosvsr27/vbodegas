@@ -1,4 +1,4 @@
-// app/src/pages/catalogo.tsx
+// app/src/pages/catalogo.tsx - COMPLETE CODE - COPY AND PASTE
 import { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import { loadStripe } from "@stripe/stripe-js"
 import { fetchBodegas } from "../api"
@@ -56,6 +56,27 @@ export default function Catalogo() {
     const handleScroll = () => setScrollY(window.scrollY)
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  // SCROLL ANIMATION HOOK
+  useEffect(() => {
+    const handleScrollAnimation = () => {
+      const scrollElements = document.querySelectorAll('.scroll-element')
+      
+      scrollElements.forEach(element => {
+        const rect = element.getBoundingClientRect()
+        const isInView = rect.top < window.innerHeight && rect.bottom > 0
+        
+        if (isInView) {
+          const progress = 1 - (rect.top / window.innerHeight)
+          element.style.opacity = Math.min(progress + 0.5, 1).toString()
+          element.style.transform = `translateY(${Math.max(0, (1 - progress) * 40)}px)`
+        }
+      })
+    }
+
+    window.addEventListener('scroll', handleScrollAnimation)
+    return () => window.removeEventListener('scroll', handleScrollAnimation)
   }, [])
 
   useEffect(() => {
@@ -282,6 +303,10 @@ export default function Catalogo() {
           0% { opacity: 0; transform: translateX(-60px); }
           100% { opacity: 1; transform: translateX(0); }
         }
+        @keyframes slide-in-right {
+          0% { opacity: 0; transform: translateX(60px); }
+          100% { opacity: 1; transform: translateX(0); }
+        }
         @keyframes glow-pulse {
           0%, 100% { box-shadow: 0 0 40px rgba(16, 185, 129, 0.2); }
           50% { box-shadow: 0 0 80px rgba(16, 185, 129, 0.4); }
@@ -303,9 +328,15 @@ export default function Catalogo() {
           70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
           100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
         }
-        @keyframes slide-in-right {
-          0% { opacity: 0; transform: translateX(60px); }
-          100% { opacity: 1; transform: translateX(0); }
+        @keyframes box-float {
+          0%, 100% { transform: translateY(0px) rotateX(0deg) rotateY(0deg); }
+          25% { transform: translateY(-15px) rotateX(5deg) rotateY(5deg); }
+          50% { transform: translateY(0px) rotateX(10deg) rotateY(10deg); }
+          75% { transform: translateY(-10px) rotateX(5deg) rotateY(5deg); }
+        }
+        @keyframes glow-border {
+          0%, 100% { border-color: rgba(16, 185, 129, 0.2); box-shadow: 0 0 20px rgba(16, 185, 129, 0.1); }
+          50% { border-color: rgba(16, 185, 129, 0.6); box-shadow: 0 0 40px rgba(16, 185, 129, 0.3); }
         }
         .cinematic-fade { animation: cinematic-fade 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
         .slide-in-left { animation: slide-in-left 0.8s ease-out forwards; }
@@ -320,8 +351,13 @@ export default function Catalogo() {
         .stagger-3 { animation-delay: 0.3s; }
         .stagger-4 { animation-delay: 0.4s; }
         .stagger-5 { animation-delay: 0.5s; }
-        .group-hover\:scale-110:hover { transform: scale(1.1); }
+        .box-float { animation: box-float 6s ease-in-out infinite; }
+        .glow-border { animation: glow-border 3s ease-in-out infinite; }
         button { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .scroll-element {
+          opacity: 0;
+          transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
       `}</style>
 
       {/* Fixed Header */}
@@ -373,11 +409,11 @@ export default function Catalogo() {
         </div>
       </header>
 
-      {/* Hero Section - Cinematic */}
+      {/* Hero Section */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden pt-20 bg-gradient-to-br from-white via-slate-50 to-emerald-50">
         <div className="absolute inset-0 opacity-40">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-200 rounded-full blur-3xl" style={{opacity: 0.15}} />
-          <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-blue-200 rounded-full blur-3xl" style={{opacity: 0.1}} />
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-200 rounded-full blur-3xl" style={{opacity: 0.15, transform: `translateY(${scrollY * 0.3}px)`}} />
+          <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-blue-200 rounded-full blur-3xl" style={{opacity: 0.1, transform: `translateY(${scrollY * -0.2}px)`}} />
         </div>
 
         <div className="absolute inset-0" style={{
@@ -386,22 +422,22 @@ export default function Catalogo() {
           transform: `translateY(${parallaxOffset}px)`
         }} />
 
-        <div className="relative z-10 max-w-6xl mx-auto px-6 text-center" style={{opacity: heroOpacity}}>
+        <div className="relative z-10 max-w-6xl mx-auto px-6 text-center" style={{opacity: heroOpacity, transform: `translateY(${scrollY * 0.2}px)`}}>
           <div className="cinematic-fade">
             <div className="mb-8">
               <span className="inline-block px-4 py-2 bg-emerald-100 border border-emerald-400 rounded-full text-emerald-700 font-black text-sm uppercase tracking-widest">
-                Catálogo 2025
+                Catálogo 2024
               </span>
             </div>
 
             <h2 className="text-7xl md:text-8xl lg:text-9xl font-black leading-none mb-6 tracking-tighter text-gray-900">
-              <span className="text-reveal">ALMACENAMIENTO</span>
+              <span className="text-reveal">ESPACIO</span>
               <br />
-              <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 bg-clip-text text-transparent text-reveal">PERFECTO</span>
+              <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 bg-clip-text text-transparent text-reveal">INFINITO</span>
             </h2>
 
             <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-12 font-light leading-relaxed">
-               Visualiza, compara, reserva.
+              Experiencia inmersiva en búsqueda de espacios. Visualiza, compara, conquista.
             </p>
 
             <div className="flex justify-center gap-4">
@@ -415,12 +451,52 @@ export default function Catalogo() {
           </div>
 
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20">
+            <div className="animate-bounce text-emerald-600 font-black text-sm">DESPLAZA</div>
           </div>
         </div>
       </section>
 
-      {/* Divider Section */}
+      {/* Warehouse Box Scroll Animation Section */}
+      <section className="relative py-32 px-6 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className="flex justify-center scroll-element">
+              <div className="relative w-64 h-64 box-float">
+                <div className="absolute inset-0 border-4 border-emerald-500 rounded-2xl bg-gradient-to-br from-emerald-400/30 to-emerald-600/30 backdrop-blur-xl shadow-2xl shadow-emerald-500/30" />
+                <div className="absolute inset-4 border-2 border-emerald-400/50 rounded-lg" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <svg className="w-32 h-32 text-emerald-500/40" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 1C6.48 1 2 5.48 2 11v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V11c0-5.52-4.48-10-10-10zm0 2c3.9 0 7 3.1 7 7v4H5v-4c0-3.9 3.1-7 7-7zm0 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="scroll-element">
+              <h2 className="text-5xl font-black text-gray-900 mb-6">
+                Tu Espacio <span className="text-emerald-600">Seguro</span>
+              </h2>
+              <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+                Bodegas seguras, modernas y accesibles. Con nuestro sistema de detección avanzado y control de acceso, tus pertenencias están siempre protegidas.
+              </p>
+              <ul className="space-y-4">
+                {['Control de acceso 24/7', 'Vigilancia CCTV integral', 'Seguros disponibles', 'Acceso flexible'].map((item, i) => (
+                  <li key={i} className="flex items-center gap-3 scroll-element" style={{animationDelay: `${i * 0.1}s`}}>
+                    <div className="w-3 h-3 bg-emerald-500 rounded-full" />
+                    <span className="text-gray-700 font-semibold">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Divider */}
       <section className="relative h-40 flex items-center justify-center overflow-hidden border-t border-b border-gray-200 bg-white">
+        <h3 className="text-5xl md:text-7xl font-black text-gray-100 absolute text-center pointer-events-none">
+          PERSONALIZA
+        </h3>
         <div className="relative z-10 text-center">
           <span className="inline-block px-6 py-3 bg-emerald-100 border border-emerald-400 rounded-full text-emerald-700 font-black text-lg uppercase tracking-widest">
             ↓ FILTROS AVANZADOS ↓
@@ -428,12 +504,11 @@ export default function Catalogo() {
         </div>
       </section>
 
-      {/* Controls Section */}
+      {/* Controls */}
       <section className="relative py-32 px-6 bg-gradient-to-b from-white via-slate-50 to-white">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-3 gap-8">
-            {/* Plant Selector */}
-            <div className="lg:col-span-2 border-2 border-emerald-200 rounded-2xl p-8 backdrop-blur-sm bg-emerald-50 hover:border-emerald-400 transition-all float-up stagger-1 hover:shadow-2xl hover:shadow-emerald-200/50">
+            <div className="lg:col-span-2 border-2 border-emerald-200 rounded-2xl p-8 backdrop-blur-sm bg-emerald-50 hover:border-emerald-400 transition-all float-up stagger-1 glow-border scroll-element">
               <h4 className="text-sm font-black text-emerald-700 uppercase tracking-widest mb-6">Selecciona Nivel</h4>
               <div className="flex gap-4">
                 {["baja", "alta"].map(p => (
@@ -453,8 +528,7 @@ export default function Catalogo() {
               </div>
             </div>
 
-            {/* Stats Box */}
-            <div className="border-2 border-blue-200 rounded-2xl p-8 backdrop-blur-sm bg-blue-50 float-up stagger-2 hover:shadow-2xl hover:shadow-blue-200/50 transition-all group">
+            <div className="border-2 border-blue-200 rounded-2xl p-8 backdrop-blur-sm bg-blue-50 float-up stagger-2 glow-border scroll-element group">
               <h4 className="text-sm font-black text-blue-700 uppercase tracking-widest mb-6">Disponibilidad</h4>
               <div className="space-y-4">
                 <div className="flex justify-between items-center group-hover:translate-x-1 transition-transform">
@@ -469,7 +543,6 @@ export default function Catalogo() {
             </div>
           </div>
 
-          {/* State Filters */}
           <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
               { key: "disponible", label: "DISPONIBLE", count: stats.disponible },
@@ -481,7 +554,7 @@ export default function Catalogo() {
                 onClick={() => setActivos({ ...activos, [s.key]: !activos[s.key] })}
                 className={`group relative py-8 px-6 rounded-xl font-black text-lg uppercase tracking-wider transition-all overflow-hidden float-up ${
                   i === 0 ? "stagger-1" : i === 1 ? "stagger-2" : "stagger-3"
-                } hover:scale-105 hover:shadow-2xl ${
+                } hover:scale-105 hover:shadow-2xl scroll-element ${
                   activos[s.key]
                     ? s.key === "disponible" 
                       ? "bg-emerald-100 border-2 border-emerald-500 text-emerald-700 shadow-lg hover:shadow-emerald-300/50"
@@ -505,13 +578,13 @@ export default function Catalogo() {
       {/* Canvas Section */}
       <section className="relative py-32 px-6 bg-white border-t-2 border-emerald-200">
         <div className="max-w-7xl mx-auto">
-          <h3 className="text-6xl font-black mb-4 text-gray-900 float-up">
+          <h3 className="text-6xl font-black mb-4 text-gray-900 float-up scroll-element">
             MAPA <span className="text-emerald-600">INTERACTIVO</span>
           </h3>
-          <p className="text-lg text-gray-600 mb-12 font-light float-up stagger-1">Haz clic en cualquier espacio para explorar</p>
+          <p className="text-lg text-gray-600 mb-12 font-light float-up stagger-1 scroll-element">Haz clic en cualquier espacio para explorar</p>
 
           {filtroVolumen !== null && (
-            <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-xl p-4 float-up stagger-2">
+            <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-xl p-4 float-up stagger-2 scroll-element">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
@@ -537,7 +610,7 @@ export default function Catalogo() {
             </div>
           )}
 
-          <div className="border-2 border-emerald-300 rounded-2xl overflow-hidden backdrop-blur-sm bg-gray-50 hover:border-emerald-500 transition-all duration-500 float-up stagger-3">
+          <div className="border-2 border-emerald-300 rounded-2xl overflow-hidden backdrop-blur-sm bg-gray-50 hover:border-emerald-500 transition-all duration-500 float-up stagger-3 scroll-element glow-border">
             <canvas ref={hitCanvasRef} width={W} height={H} style={{ display: "none" }} />
             <canvas
               ref={canvasRef}
@@ -549,8 +622,7 @@ export default function Catalogo() {
             />
           </div>
 
-          {/* Legend */}
-          <div className="mt-12 flex justify-center gap-16 float-up stagger-4">
+          <div className="mt-12 flex justify-center gap-16 float-up stagger-4 scroll-element">
             {[
               { color: "emerald", label: "DISPONIBLE" },
               { color: "amber", label: "APARTADA" },
@@ -572,17 +644,17 @@ export default function Catalogo() {
       {/* Benefits Section */}
       <section className="relative py-32 px-6 bg-gradient-to-b from-white via-emerald-50 to-white border-t border-gray-200">
         <div className="max-w-7xl mx-auto">
-          <h3 className="text-6xl md:text-7xl font-black text-center mb-20 text-gray-900 float-up">
+          <h3 className="text-6xl md:text-7xl font-black text-center mb-20 text-gray-900 float-up scroll-element">
             ¿POR QUÉ <span className="text-emerald-600">VBODEGAS</span>?
           </h3>
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { icon: "◆", title: "SEGURIDAD", desc: "Vigilancia 24/7", delay: "stagger-1" },
-              { icon: "◆", title: "CALIDAD", desc: "La mejor calidad estructural como grupo Heva lo saber hacer, Eco-friendly y Protección contra inundaciones", delay: "stagger-2" },
-              { icon: "◆", title: "FLEXIBILIDAD", desc: "Nos adaptamos a tus necesidades.", delay: "stagger-3" },
+              { icon: "◆", title: "BÚSQUEDA INTELIGENTE", desc: "IA que entiende tus necesidades", delay: "stagger-1" },
+              { icon: "◆", title: "VELOCIDAD", desc: "Reserva en segundos, no minutos", delay: "stagger-2" },
+              { icon: "◆", title: "TRANSPARENCIA", desc: "Sin sorpresas, todo visible", delay: "stagger-3" },
             ].map((b, i) => (
-              <div key={i} className={`group border-2 border-gray-200 rounded-xl p-8 hover:border-emerald-400 transition-all bg-white hover:bg-emerald-50/50 float-up ${b.delay}`}>
+              <div key={i} className={`group border-2 border-gray-200 rounded-xl p-8 hover:border-emerald-400 transition-all bg-white hover:bg-emerald-50/50 float-up ${b.delay} scroll-element glow-border`}>
                 <div className="text-4xl font-black text-emerald-600 mb-4">{b.icon}</div>
                 <h4 className="text-lg font-black text-gray-900 mb-3 uppercase">{b.title}</h4>
                 <p className="text-gray-600 font-medium">{b.desc}</p>
@@ -592,18 +664,18 @@ export default function Catalogo() {
         </div>
       </section>
 
-      {/* Final CTA Section */}
+      {/* CTA Section */}
       <section className="relative py-40 px-6 bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 overflow-hidden">
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl" />
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto text-center text-white">
-          <h3 className="text-7xl md:text-8xl font-black mb-8 float-up">
+          <h3 className="text-7xl md:text-8xl font-black mb-8 float-up scroll-element">
             ¿LISTO?
           </h3>
-          <p className="text-2xl font-light mb-12 float-up stagger-1">Comienza el viaje hacia el espacio perfecto</p>
-          <button className="group px-12 py-6 bg-white text-emerald-600 font-black text-xl rounded-lg hover:bg-gray-100 transition-all hover:scale-105 shadow-2xl hover:shadow-emerald-900/30 float-up stagger-2 uppercase tracking-wider">
+          <p className="text-2xl font-light mb-12 float-up stagger-1 scroll-element">Comienza tu viaje hacia el espacio perfecto</p>
+          <button className="group px-12 py-6 bg-white text-emerald-600 font-black text-xl rounded-lg hover:bg-gray-100 transition-all hover:scale-105 shadow-2xl hover:shadow-emerald-900/30 float-up stagger-2 scroll-element uppercase tracking-wider">
             EXPLORAR AHORA
           </button>
         </div>
@@ -621,7 +693,7 @@ export default function Catalogo() {
       {/* Carrito */}
       <CartDrawer open={cartOpen} items={cart} onClose={() => setCartOpen(false)} />
 
-      {/* Calculadora de Volumen */}
+      {/* Calculadora */}
       <CalculadoraVolumen
         isOpen={calculadoraOpen}
         onClose={() => setCalculadoraOpen(false)}
