@@ -269,24 +269,44 @@ export default function Catalogo() {
   }, [bodegas])
 
   const parallaxOffset = scrollY * 0.5
+  const heroOpacity = Math.max(1 - scrollY / 300, 0.3)
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 overflow-hidden">
+    <div className="min-h-screen bg-white overflow-hidden">
       <style>{`
         @keyframes cinematic-fade {
           0% { opacity: 0; transform: translateY(100px) scaleY(0.8); }
           100% { opacity: 1; transform: translateY(0) scaleY(1); }
         }
+        @keyframes slide-in-left {
+          0% { opacity: 0; transform: translateX(-60px); }
+          100% { opacity: 1; transform: translateX(0); }
+        }
         @keyframes glow-pulse {
           0%, 100% { box-shadow: 0 0 40px rgba(16, 185, 129, 0.2); }
           50% { box-shadow: 0 0 80px rgba(16, 185, 129, 0.4); }
         }
+        @keyframes float-up {
+          0% { opacity: 0; transform: translateY(60px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes text-reveal {
+          0% { clip-path: inset(0 100% 0 0); }
+          100% { clip-path: inset(0 0 0 0); }
+        }
         .cinematic-fade { animation: cinematic-fade 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .slide-in-left { animation: slide-in-left 0.8s ease-out forwards; }
         .glow { animation: glow-pulse 3s ease-in-out infinite; }
+        .float-up { animation: float-up 0.8s ease-out forwards; }
+        .text-reveal { animation: text-reveal 1s ease-out forwards; }
+        .stagger-1 { animation-delay: 0.1s; }
+        .stagger-2 { animation-delay: 0.2s; }
+        .stagger-3 { animation-delay: 0.3s; }
+        .stagger-4 { animation-delay: 0.4s; }
       `}</style>
 
       {/* Fixed Header */}
-      <header className="fixed top-0 w-full z-50 backdrop-blur-2xl bg-white/80 border-b border-gray-200">
+      <header className="fixed top-0 w-full z-50 backdrop-blur-2xl bg-white/80 border-b border-gray-200/50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center glow">
@@ -326,68 +346,91 @@ export default function Catalogo() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8 pt-24">
-        {filtroVolumen !== null && (
-          <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-bold text-blue-900">Filtro de Volumen Activo</p>
-                  <p className="text-sm text-blue-700">
-                    Mostrando bodegas con ≥ {filtroVolumen.toFixed(2)} m²
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={limpiarFiltroVolumen}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold transition-colors duration-200 flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Limpiar Filtro
+      {/* Hero Section - Cinematic */}
+      <section className="relative h-screen flex items-center justify-center overflow-hidden pt-20 bg-gradient-to-br from-white via-slate-50 to-emerald-50">
+        <div className="absolute inset-0 opacity-40">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-200 rounded-full blur-3xl" style={{opacity: 0.15}} />
+          <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-blue-200 rounded-full blur-3xl" style={{opacity: 0.1}} />
+        </div>
+
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'linear-gradient(rgba(16, 185, 129, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(16, 185, 129, 0.08) 1px, transparent 1px)',
+          backgroundSize: '80px 80px',
+          transform: `translateY(${parallaxOffset}px)`
+        }} />
+
+        <div className="relative z-10 max-w-6xl mx-auto px-6 text-center" style={{opacity: heroOpacity}}>
+          <div className="cinematic-fade">
+            <div className="mb-8">
+              <span className="inline-block px-4 py-2 bg-emerald-100 border border-emerald-400 rounded-full text-emerald-700 font-black text-sm uppercase tracking-widest">
+                Catálogo 2024
+              </span>
+            </div>
+
+            <h2 className="text-7xl md:text-8xl lg:text-9xl font-black leading-none mb-6 tracking-tighter text-gray-900">
+              <span className="text-reveal">ESPACIO</span>
+              <br />
+              <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 bg-clip-text text-transparent text-reveal">INFINITO</span>
+            </h2>
+
+            <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-12 font-light leading-relaxed">
+              Experiencia inmersiva en búsqueda de espacios. Visualiza, compara, conquista.
+            </p>
+
+            <div className="flex justify-center gap-4">
+              <button className="group px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg rounded-lg transition-all hover:scale-105 hover:shadow-2xl hover:shadow-emerald-600/40">
+                EXPLORAR
+              </button>
+              <button className="px-8 py-4 bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-900 font-bold rounded-lg transition-all">
+                CATÁLOGO
               </button>
             </div>
           </div>
-        )}
 
-        {/* Panel de Control */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20">
+            <div className="animate-bounce text-emerald-600 font-black text-sm">DESPLAZA</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Divider Section */}
+      <section className="relative h-40 flex items-center justify-center overflow-hidden border-t border-b border-gray-200 bg-white">
+        <h3 className="text-5xl md:text-7xl font-black text-gray-100 absolute text-center pointer-events-none">
+          PERSONALIZA
+        </h3>
+        <div className="relative z-10 text-center">
+          <span className="inline-block px-6 py-3 bg-emerald-100 border border-emerald-400 rounded-full text-emerald-700 font-black text-lg uppercase tracking-widest">
+            ↓ FILTROS AVANZADOS ↓
+          </span>
+        </div>
+      </section>
+
+      {/* Controls Section */}
+      <section className="relative py-32 px-6 bg-gradient-to-b from-white via-slate-50 to-white">
+        <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-3 gap-8">
-            {/* Selector de Planta */}
-            <div className="lg:col-span-2 border-2 border-emerald-200 rounded-2xl p-8 bg-emerald-50 hover:border-emerald-400 transition-all">
-              <h3 className="text-sm font-black text-emerald-700 uppercase tracking-widest mb-6">Selecciona Planta</h3>
+            {/* Plant Selector */}
+            <div className="lg:col-span-2 border-2 border-emerald-200 rounded-2xl p-8 backdrop-blur-sm bg-emerald-50 hover:border-emerald-400 transition-all float-up stagger-1">
+              <h4 className="text-sm font-black text-emerald-700 uppercase tracking-widest mb-6">Selecciona Nivel</h4>
               <div className="flex gap-4">
-                <button
-                  onClick={() => setPlanta("baja")}
-                  className={`flex-1 py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
-                    planta === "baja"
-                      ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30 scale-105"
-                      : "bg-white text-gray-700 hover:bg-gray-100 border-2 border-gray-200"
-                  }`}
-                >
-                  Planta Baja
-                </button>
-                <button
-                  onClick={() => setPlanta("alta")}
-                  className={`flex-1 py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
-                    planta === "alta"
-                      ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30 scale-105"
-                      : "bg-white text-gray-700 hover:bg-gray-100 border-2 border-gray-200"
-                  }`}
-                >
-                  Planta Alta
-                </button>
+                {["baja", "alta"].map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setPlanta(p)}
+                    className={`flex-1 py-6 px-8 rounded-xl font-black text-xl transition-all ${
+                      planta === p
+                        ? "bg-emerald-600 text-white shadow-2xl shadow-emerald-600/30 scale-105"
+                        : "bg-white text-gray-700 border-2 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50"
+                    }`}
+                  >
+                    {p === "baja" ? "PLANTA BAJA" : "PLANTA ALTA"}
+                  </button>
+                ))}
               </div>
             </div>
 
             {/* Stats Box */}
-            <div className="border-2 border-blue-200 rounded-2xl p-8 bg-blue-50">
+            <div className="border-2 border-blue-200 rounded-2xl p-8 backdrop-blur-sm bg-blue-50 float-up stagger-2">
               <h4 className="text-sm font-black text-blue-700 uppercase tracking-widest mb-6">Disponibilidad</h4>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
@@ -402,88 +445,144 @@ export default function Catalogo() {
             </div>
           </div>
 
-          {/* Filtros de Estado */}
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest mb-4">Filtrar por Estado</h3>
-            <div className="grid grid-cols-3 gap-3">
+          {/* State Filters */}
+          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { key: "disponible", label: "DISPONIBLE", count: stats.disponible },
+              { key: "apartada", label: "APARTADA", count: stats.apartada },
+              { key: "rentada", label: "RENTADA", count: stats.rentada },
+            ].map((s, i) => (
               <button
-                onClick={() => setActivos({ ...activos, disponible: !activos.disponible })}
-                className={`py-3 px-4 rounded-xl font-black transition-all duration-300 flex items-center justify-center gap-2 uppercase text-sm tracking-wider ${
-                  activos.disponible
-                    ? "bg-emerald-100 text-emerald-700 border-2 border-emerald-500 shadow-md"
-                    : "bg-gray-100 text-gray-400 border-2 border-gray-200"
+                key={s.key}
+                onClick={() => setActivos({ ...activos, [s.key]: !activos[s.key] })}
+                className={`group relative py-8 px-6 rounded-xl font-black text-lg uppercase tracking-wider transition-all overflow-hidden float-up ${
+                  i === 0 ? "stagger-1" : i === 1 ? "stagger-2" : "stagger-3"
+                } ${
+                  activos[s.key]
+                    ? s.key === "disponible" 
+                      ? "bg-emerald-100 border-2 border-emerald-500 text-emerald-700 shadow-lg"
+                      : s.key === "apartada"
+                      ? "bg-amber-100 border-2 border-amber-500 text-amber-700 shadow-lg"
+                      : "bg-red-100 border-2 border-red-500 text-red-700 shadow-lg"
+                    : "bg-gray-50 border-2 border-gray-200 text-gray-500 hover:border-gray-300"
                 }`}
               >
-                <div className={`w-3 h-3 rounded-full ${activos.disponible ? "bg-emerald-500" : "bg-gray-300"}`} />
-                Disponible
-                <span className="text-xs font-black">{stats.disponible}</span>
+                <div className="relative z-10">
+                  <div className="text-3xl font-black mb-2">{s.count}</div>
+                  <div className="text-xs">{s.label}</div>
+                </div>
               </button>
-              <button
-                onClick={() => setActivos({ ...activos, apartada: !activos.apartada })}
-                className={`py-3 px-4 rounded-xl font-black transition-all duration-300 flex items-center justify-center gap-2 uppercase text-sm tracking-wider ${
-                  activos.apartada
-                    ? "bg-amber-100 text-amber-700 border-2 border-amber-500 shadow-md"
-                    : "bg-gray-100 text-gray-400 border-2 border-gray-200"
-                }`}
-              >
-                <div className={`w-3 h-3 rounded-full ${activos.apartada ? "bg-amber-500" : "bg-gray-300"}`} />
-                Apartada
-                <span className="text-xs font-black">{stats.apartada}</span>
-              </button>
-              <button
-                onClick={() => setActivos({ ...activos, rentada: !activos.rentada })}
-                className={`py-3 px-4 rounded-xl font-black transition-all duration-300 flex items-center justify-center gap-2 uppercase text-sm tracking-wider ${
-                  activos.rentada
-                    ? "bg-red-100 text-red-700 border-2 border-red-500 shadow-md"
-                    : "bg-gray-100 text-gray-400 border-2 border-gray-200"
-                }`}
-              >
-                <div className={`w-3 h-3 rounded-full ${activos.rentada ? "bg-red-500" : "bg-gray-300"}`} />
-                Rentada
-                <span className="text-xs font-black">{stats.rentada}</span>
-              </button>
-            </div>
+            ))}
           </div>
         </div>
+      </section>
 
-        {/* Plano Interactivo */}
-        <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 overflow-hidden">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-black text-gray-900">Plano Interactivo</h3>
-            <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-              Haz clic en una bodega para más información
-            </span>
-          </div>
-          
-          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl border-2 border-emerald-200 overflow-hidden relative shadow-inner">
+      {/* Canvas Section */}
+      <section className="relative py-32 px-6 bg-white border-t-2 border-emerald-200">
+        <div className="max-w-7xl mx-auto">
+          <h3 className="text-6xl font-black mb-4 text-gray-900 float-up">
+            MAPA <span className="text-emerald-600">INTERACTIVO</span>
+          </h3>
+          <p className="text-lg text-gray-600 mb-12 font-light float-up stagger-1">Haz clic en cualquier espacio para explorar</p>
+
+          {filtroVolumen !== null && (
+            <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-xl p-4 float-up stagger-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-bold text-blue-900">Filtro de Volumen Activo</p>
+                    <p className="text-sm text-blue-700">Mostrando bodegas con ≥ {filtroVolumen.toFixed(2)} m²</p>
+                  </div>
+                </div>
+                <button
+                  onClick={limpiarFiltroVolumen}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold transition-colors duration-200 flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Limpiar
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="border-2 border-emerald-300 rounded-2xl overflow-hidden backdrop-blur-sm bg-gray-50 hover:border-emerald-500 transition-all duration-500 float-up stagger-3">
             <canvas ref={hitCanvasRef} width={W} height={H} style={{ display: "none" }} />
             <canvas
               ref={canvasRef}
               width={W}
               height={H}
               onClick={onClick}
-              className="w-full h-auto cursor-pointer block transition-transform hover:scale-[1.01] duration-300"
+              className="w-full h-auto cursor-crosshair block"
               style={{ maxWidth: "100%", height: "auto" }}
             />
           </div>
 
-          {/* Leyenda */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-8 text-sm">
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-emerald-500 rounded"></div>
-              <span className="text-gray-700 font-medium">Disponible</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-amber-500 rounded"></div>
-              <span className="text-gray-700 font-medium">Apartada</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-red-500 rounded"></div>
-              <span className="text-gray-700 font-medium">Rentada</span>
-            </div>
+          {/* Legend */}
+          <div className="mt-12 flex justify-center gap-16 float-up stagger-4">
+            {[
+              { color: "emerald", label: "DISPONIBLE" },
+              { color: "amber", label: "APARTADA" },
+              { color: "red", label: "RENTADA" },
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${
+                  item.color === "emerald" ? "bg-emerald-600" :
+                  item.color === "amber" ? "bg-amber-500" :
+                  "bg-red-500"
+                }`} />
+                <span className="font-black text-sm text-gray-900 uppercase tracking-wider">{item.label}</span>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* Benefits Section */}
+      <section className="relative py-32 px-6 bg-gradient-to-b from-white via-emerald-50 to-white border-t border-gray-200">
+        <div className="max-w-7xl mx-auto">
+          <h3 className="text-6xl md:text-7xl font-black text-center mb-20 text-gray-900 float-up">
+            ¿POR QUÉ <span className="text-emerald-600">VBODEGAS</span>?
+          </h3>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { icon: "◆", title: "BÚSQUEDA INTELIGENTE", desc: "IA que entiende tus necesidades", delay: "stagger-1" },
+              { icon: "◆", title: "VELOCIDAD", desc: "Reserva en segundos, no minutos", delay: "stagger-2" },
+              { icon: "◆", title: "TRANSPARENCIA", desc: "Sin sorpresas, todo visible", delay: "stagger-3" },
+            ].map((b, i) => (
+              <div key={i} className={`group border-2 border-gray-200 rounded-xl p-8 hover:border-emerald-400 transition-all bg-white hover:bg-emerald-50/50 float-up ${b.delay}`}>
+                <div className="text-4xl font-black text-emerald-600 mb-4">{b.icon}</div>
+                <h4 className="text-lg font-black text-gray-900 mb-3 uppercase">{b.title}</h4>
+                <p className="text-gray-600 font-medium">{b.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA Section */}
+      <section className="relative py-40 px-6 bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 max-w-4xl mx-auto text-center text-white">
+          <h3 className="text-7xl md:text-8xl font-black mb-8 float-up">
+            ¿LISTO?
+          </h3>
+          <p className="text-2xl font-light mb-12 float-up stagger-1">Comienza tu viaje hacia el espacio perfecto</p>
+          <button className="group px-12 py-6 bg-white text-emerald-600 font-black text-xl rounded-lg hover:bg-gray-100 transition-all hover:scale-105 shadow-2xl hover:shadow-emerald-900/30 float-up stagger-2 uppercase tracking-wider">
+            EXPLORAR AHORA
+          </button>
+        </div>
+      </section>
 
       {/* Modal */}
       {selected && (
