@@ -554,7 +554,7 @@ export default function Catalogo() {
           <div className="grid md:grid-cols-3 gap-8">
             {[
               { icon: "◆", title: "SEGURIDAD", desc: "Vigilancia 24/7", delay: "stagger-1" },
-              { icon: "◆", title: "CALIDAD", desc: "Eco-friendly, Calidad Constructiva, Protección contra inundaciones", delay: "stagger-2" },
+              { icon: "◆", title: "CALIDAD", desc: "La mejor calidad estructural como grupo Heva lo saber hacer, Eco-friendly y Protección contra inundaciones", delay: "stagger-2" },
               { icon: "◆", title: "FLEXIBILIDAD", desc: "Nos adaptamos a tus necesidades.", delay: "stagger-3" },
             ].map((b, i) => (
               <div key={i} className={`group border-2 border-gray-200 rounded-xl p-8 hover:border-emerald-400 transition-all bg-white hover:bg-emerald-50/50 float-up ${b.delay}`}>
