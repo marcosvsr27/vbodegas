@@ -426,7 +426,7 @@ export default function Catalogo() {
           <div className="cinematic-fade">
             <div className="mb-8">
               <span className="inline-block px-4 py-2 bg-emerald-100 border border-emerald-400 rounded-full text-emerald-700 font-black text-sm uppercase tracking-widest">
-                Catálogo 2024
+                Catálogo 2025
               </span>
             </div>
 
