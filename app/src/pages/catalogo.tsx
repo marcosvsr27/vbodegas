@@ -431,27 +431,24 @@ export default function Catalogo() {
             </div>
 
             <h2 className="text-7xl md:text-8xl lg:text-9xl font-black leading-none mb-6 tracking-tighter text-gray-900">
-              <span className="text-reveal">ESPACIO</span>
+              <span className="text-reveal">TU ESPACIO</span>
               <br />
-              <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 bg-clip-text text-transparent text-reveal">INFINITO</span>
+              <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 bg-clip-text text-transparent text-reveal">PERFECTO</span>
             </h2>
 
             <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-12 font-light leading-relaxed">
-              Experiencia inmersiva en búsqueda de espacios. Visualiza, compara, conquista.
+              Experiencia inmersiva en búsqueda de espacios. Visualiza, compara, reserva.
             </p>
 
             <div className="flex justify-center gap-4">
               <button className="group px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg rounded-lg transition-all hover:scale-105 hover:shadow-2xl hover:shadow-emerald-600/40">
-                EXPLORAR
-              </button>
-              <button className="px-8 py-4 bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-900 font-bold rounded-lg transition-all">
-                CATÁLOGO
+                EXPLORA EL CATALOGO
               </button>
             </div>
           </div>
 
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20">
-            <div className="animate-bounce text-emerald-600 font-black text-sm">DESPLAZA</div>
+
           </div>
         </div>
       </section>
@@ -477,10 +474,10 @@ export default function Catalogo() {
                 Tu Espacio <span className="text-emerald-600">Seguro</span>
               </h2>
               <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-                Bodegas seguras, modernas y accesibles. Con nuestro sistema de detección avanzado y control de acceso, tus pertenencias están siempre protegidas.
+                Bodegas seguras, modernas y accesibles. Con nuestro sistema de vigilancia y control de acceso, tus pertenencias están siempre protegidas.
               </p>
               <ul className="space-y-4">
-                {['Control de acceso 24/7', 'Vigilancia CCTV integral', 'Seguros disponibles', 'Acceso flexible'].map((item, i) => (
+                {['Control de acceso 24/7', 'Vigilancia CCTV integral', 'Acceso flexible'].map((item, i) => (
                   <li key={i} className="flex items-center gap-3 scroll-element" style={{animationDelay: `${i * 0.1}s`}}>
                     <div className="w-3 h-3 bg-emerald-500 rounded-full" />
                     <span className="text-gray-700 font-semibold">{item}</span>
@@ -494,9 +491,6 @@ export default function Catalogo() {
 
       {/* Divider */}
       <section className="relative h-40 flex items-center justify-center overflow-hidden border-t border-b border-gray-200 bg-white">
-        <h3 className="text-5xl md:text-7xl font-black text-gray-100 absolute text-center pointer-events-none">
-          PERSONALIZA
-        </h3>
         <div className="relative z-10 text-center">
           <span className="inline-block px-6 py-3 bg-emerald-100 border border-emerald-400 rounded-full text-emerald-700 font-black text-lg uppercase tracking-widest">
             ↓ FILTROS AVANZADOS ↓
@@ -650,9 +644,9 @@ export default function Catalogo() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { icon: "◆", title: "BÚSQUEDA INTELIGENTE", desc: "IA que entiende tus necesidades", delay: "stagger-1" },
-              { icon: "◆", title: "VELOCIDAD", desc: "Reserva en segundos, no minutos", delay: "stagger-2" },
-              { icon: "◆", title: "TRANSPARENCIA", desc: "Sin sorpresas, todo visible", delay: "stagger-3" },
+          { icon: "◆", title: "SEGURIDAD", desc: "Vigilancia 24/7", delay: "stagger-1" },
+          { icon: "◆", title: "CALIDAD", desc: "La mejor calidad estructural como grupo Heva lo saber hacer, Eco-friendly y Protección contra inundaciones", delay: "stagger-2" },
+          { icon: "◆", title: "FLEXIBILIDAD", desc: "Nos adaptamos a tus necesidades.", delay: "stagger-3" },
             ].map((b, i) => (
               <div key={i} className={`group border-2 border-gray-200 rounded-xl p-8 hover:border-emerald-400 transition-all bg-white hover:bg-emerald-50/50 float-up ${b.delay} scroll-element glow-border`}>
                 <div className="text-4xl font-black text-emerald-600 mb-4">{b.icon}</div>
