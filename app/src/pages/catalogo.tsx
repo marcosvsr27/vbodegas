@@ -437,7 +437,7 @@ export default function Catalogo() {
             </h2>
 
             <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-12 font-light leading-relaxed">
-              Experiencia inmersiva en búsqueda de espacios. Visualiza, compara, reserva.
+              Visualiza, compara, reserva.
             </p>
 
             <div className="flex justify-center gap-4">
@@ -527,11 +527,11 @@ export default function Catalogo() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center group-hover:translate-x-1 transition-transform">
                   <span className="text-gray-600 font-bold">Total:</span>
-                  <span className="text-2xl font-black text-gray-900 shimmer bg-gradient-to-r from-gray-900 via-gray-600 to-gray-900">{stats.total}</span>
+                  <span className="text-2xl font-black text-gray-900 shimmer">{stats.total}</span>
                 </div>
                 <div className="flex justify-between items-center group-hover:translate-x-1 transition-transform">
                   <span className="text-emerald-700 font-bold">Disponibles:</span>
-                  <span className="text-2xl font-black text-emerald-600 shimmer bg-gradient-to-r from-emerald-600 via-emerald-400 to-emerald-600">{stats.disponible}</span>
+                  <span className="text-2xl font-black text-emerald-600 shimmer">{stats.disponible}</span>
                 </div>
               </div>
             </div>
