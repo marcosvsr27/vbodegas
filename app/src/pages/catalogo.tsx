@@ -395,13 +395,13 @@ export default function Catalogo() {
             </div>
 
             <h2 className="text-7xl md:text-8xl lg:text-9xl font-black leading-none mb-6 tracking-tighter text-gray-900">
-              <span className="text-reveal">ESPACIO</span>
+              <span className="text-reveal">ALMACENAMIENTO</span>
               <br />
-              <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 bg-clip-text text-transparent text-reveal">INFINITO</span>
+              <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 bg-clip-text text-transparent text-reveal">PERFECTO</span>
             </h2>
 
             <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-12 font-light leading-relaxed">
-              Experiencia inmersiva en búsqueda de espacios. Visualiza, compara, conquista.
+               Visualiza, compara, conquista.
             </p>
 
             <div className="flex justify-center gap-4">
@@ -602,7 +602,7 @@ export default function Catalogo() {
           <h3 className="text-7xl md:text-8xl font-black mb-8 float-up">
             ¿LISTO?
           </h3>
-          <p className="text-2xl font-light mb-12 float-up stagger-1">Comienza tu viaje hacia el espacio perfecto</p>
+          <p className="text-2xl font-light mb-12 float-up stagger-1">Comienza el viaje hacia el espacio perfecto</p>
           <button className="group px-12 py-6 bg-white text-emerald-600 font-black text-xl rounded-lg hover:bg-gray-100 transition-all hover:scale-105 shadow-2xl hover:shadow-emerald-900/30 float-up stagger-2 uppercase tracking-wider">
             EXPLORAR AHORA
           </button>
