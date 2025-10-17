@@ -1,4 +1,5 @@
 // app/src/pages/catalogo.tsx
+// app/src/pages/catalogo.tsx
 import { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import { loadStripe } from "@stripe/stripe-js"
 import { fetchBodegas } from "../api"
@@ -45,11 +46,18 @@ export default function Catalogo() {
   const [cart, setCart] = useState<Bodega[]>([])
   const [calculadoraOpen, setCalculadoraOpen] = useState(false)
   const [filtroVolumen, setFiltroVolumen] = useState<number | null>(null)
+  const [scrollY, setScrollY] = useState(0)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const hitCanvasRef = useRef<HTMLCanvasElement>(null)
   const imageCache = useRef<{ [key: string]: HTMLImageElement }>({})
   const colorToPolyMap = useRef<Map<string, any>>(new Map())
+
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY)
+    window.addEventListener("scroll", handleScroll)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
 
   useEffect(() => {
     fetchBodegas().then(setBodegas);
@@ -95,7 +103,6 @@ export default function Catalogo() {
   const optimizedPolys = useMemo(() => {
     let polys = bodegas.filter(b => b.planta === planta && activos[b.estado])
     
-    // Aplicar filtro de volumen si está activo
     if (filtroVolumen !== null) {
       polys = polys.filter(b => b.metros >= filtroVolumen)
     }
@@ -231,7 +238,6 @@ export default function Catalogo() {
   const stats = useMemo(() => {
     let filtered = bodegas.filter(b => b.planta === planta)
     
-    // Aplicar filtro de volumen si está activo
     if (filtroVolumen !== null) {
       filtered = filtered.filter(b => b.metros >= filtroVolumen)
     }
@@ -263,236 +269,219 @@ export default function Catalogo() {
       }))
   }, [bodegas])
 
+  const parallaxOffset = scrollY * 0.5
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50">
-      {/* Header Premium */}
-      <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40 backdrop-blur-lg bg-white/95">
-        <div className="max-w-7xl mx-auto px-6 py-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Catálogo de Bodegas</h1>
-                <p className="text-sm text-gray-500 mt-0.5">Seleccione su espacio ideal</p>
-              </div>
+    <div className="min-h-screen bg-white text-gray-900 overflow-hidden">
+      <style>{`
+        @keyframes cinematic-fade {
+          0% { opacity: 0; transform: translateY(100px) scaleY(0.8); }
+          100% { opacity: 1; transform: translateY(0) scaleY(1); }
+        }
+        @keyframes glow-pulse {
+          0%, 100% { box-shadow: 0 0 40px rgba(16, 185, 129, 0.2); }
+          50% { box-shadow: 0 0 80px rgba(16, 185, 129, 0.4); }
+        }
+        .cinematic-fade { animation: cinematic-fade 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .glow { animation: glow-pulse 3s ease-in-out infinite; }
+      `}</style>
+
+      {/* Header */}
+      <header className="fixed top-0 w-full z-50 backdrop-blur-2xl bg-white/80 border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center glow">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
             </div>
+            <h1 className="text-2xl font-black tracking-tighter text-gray-900">V<span className="text-emerald-600">BODEGAS</span></h1>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setCalculadoraOpen(true)}
+              className="relative bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              Calculadora
+            </button>
             
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setCalculadoraOpen(true)}
-                className="relative bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                Calculadora
-              </button>
-              
-              <button
-                onClick={() => setCartOpen(true)}
-                className="relative bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:-translate-y-0.5 flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                Carrito
-                {cart.length > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-pulse">
-                    {cart.length}
-                  </span>
-                )}
-              </button>
-            </div>
+            <button
+              onClick={() => setCartOpen(true)}
+              className="relative bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:-translate-y-0.5 flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Carrito
+              {cart.length > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-pulse">
+                  {cart.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Panel de Control */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-8 backdrop-blur-sm bg-white/95">
-          {/* Filtro de Volumen Activo */}
-          {filtroVolumen !== null && (
-            <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-bold text-blue-900">Filtro de Volumen Activo</p>
-                    <p className="text-sm text-blue-700">
-                      Mostrando bodegas con ≥ {filtroVolumen.toFixed(2)} m²
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={limpiarFiltroVolumen}
-                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold transition-colors duration-200 flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+      <div className="max-w-7xl mx-auto px-6 py-8 pt-24">
+        {/* Filtro de Volumen Activo */}
+        {filtroVolumen !== null && (
+          <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                   </svg>
-                  Limpiar Filtro
+                </div>
+                <div>
+                  <p className="font-bold text-blue-900">Filtro de Volumen Activo</p>
+                  <p className="text-sm text-blue-700">
+                    Mostrando bodegas con ≥ {filtroVolumen.toFixed(2)} m²
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={limpiarFiltroVolumen}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold transition-colors duration-200 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Limpiar Filtro
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Panel de Control */}
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Selector de Planta */}
+            <div className="lg:col-span-2 border-2 border-emerald-200 rounded-2xl p-8 bg-emerald-50 hover:border-emerald-400 transition-all">
+              <h3 className="text-sm font-semibold text-emerald-700 mb-3 uppercase tracking-wide font-black">Selecciona Planta</h3>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPlanta("baja")}
+                  className={`flex-1 py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
+                    planta === "baja"
+                      ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30 scale-105"
+                      : "bg-white text-gray-700 hover:bg-gray-100 border-2 border-gray-200"
+                  }`}
+                >
+                  Planta Baja
+                </button>
+                <button
+                  onClick={() => setPlanta("alta")}
+                  className={`flex-1 py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
+                    planta === "alta"
+                      ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30 scale-105"
+                      : "bg-white text-gray-700 hover:bg-gray-100 border-2 border-gray-200"
+                  }`}
+                >
+                  Planta Alta
                 </button>
               </div>
             </div>
-          )}
 
-          {/* Selector de Planta */}
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Seleccionar Planta</h3>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setPlanta("baja")}
-                className={`flex-1 py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
-                  planta === "baja"
-                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30 scale-105"
-                    : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-2 border-gray-200"
-                }`}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                  Planta Baja
+            {/* Stats Box */}
+            <div className="border-2 border-blue-200 rounded-2xl p-8 bg-blue-50">
+              <h4 className="text-sm font-black text-blue-700 uppercase tracking-widest mb-6">Disponibilidad</h4>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 font-bold">Total:</span>
+                  <span className="text-2xl font-black text-gray-900">{stats.total}</span>
                 </div>
-              </button>
-              <button
-                onClick={() => setPlanta("alta")}
-                className={`flex-1 py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
-                  planta === "alta"
-                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30 scale-105"
-                    : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-2 border-gray-200"
-                }`}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                  </svg>
-                  Planta Alta
+                <div className="flex justify-between items-center">
+                  <span className="text-emerald-700 font-bold">Disponibles:</span>
+                  <span className="text-2xl font-black text-emerald-600">{stats.disponible}</span>
                 </div>
-              </button>
+              </div>
             </div>
           </div>
 
           {/* Filtros de Estado */}
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Filtrar por Estado</h3>
+          <div className="mt-8 pt-8 border-t border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide font-black">Filtrar por Estado</h3>
             <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => setActivos({ ...activos, disponible: !activos.disponible })}
                 className={`py-3 px-4 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
                   activos.disponible
-                    ? "bg-emerald-50 text-emerald-700 border-2 border-emerald-500 shadow-md"
-                    : "bg-gray-50 text-gray-400 border-2 border-gray-200"
+                    ? "bg-emerald-100 text-emerald-700 border-2 border-emerald-500 shadow-md"
+                    : "bg-gray-100 text-gray-400 border-2 border-gray-200"
                 }`}
               >
                 <div className={`w-3 h-3 rounded-full ${activos.disponible ? "bg-emerald-500" : "bg-gray-300"}`} />
                 Disponible
-                <span className="text-xs bg-white px-2 py-0.5 rounded-full font-bold">{stats.disponible}</span>
+                <span className="text-xs font-black">{stats.disponible}</span>
               </button>
               <button
                 onClick={() => setActivos({ ...activos, apartada: !activos.apartada })}
                 className={`py-3 px-4 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
                   activos.apartada
-                    ? "bg-amber-50 text-amber-700 border-2 border-amber-500 shadow-md"
-                    : "bg-gray-50 text-gray-400 border-2 border-gray-200"
+                    ? "bg-amber-100 text-amber-700 border-2 border-amber-500 shadow-md"
+                    : "bg-gray-100 text-gray-400 border-2 border-gray-200"
                 }`}
               >
                 <div className={`w-3 h-3 rounded-full ${activos.apartada ? "bg-amber-500" : "bg-gray-300"}`} />
                 Apartada
-                <span className="text-xs bg-white px-2 py-0.5 rounded-full font-bold">{stats.apartada}</span>
+                <span className="text-xs font-black">{stats.apartada}</span>
               </button>
               <button
                 onClick={() => setActivos({ ...activos, rentada: !activos.rentada })}
                 className={`py-3 px-4 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
                   activos.rentada
-                    ? "bg-red-50 text-red-700 border-2 border-red-500 shadow-md"
-                    : "bg-gray-50 text-gray-400 border-2 border-gray-200"
+                    ? "bg-red-100 text-red-700 border-2 border-red-500 shadow-md"
+                    : "bg-gray-100 text-gray-400 border-2 border-gray-200"
                 }`}
               >
                 <div className={`w-3 h-3 rounded-full ${activos.rentada ? "bg-red-500" : "bg-gray-300"}`} />
                 Rentada
-                <span className="text-xs bg-white px-2 py-0.5 rounded-full font-bold">{stats.rentada}</span>
+                <span className="text-xs font-black">{stats.rentada}</span>
               </button>
-            </div>
-          </div>
-
-          {/* Estadísticas Rápidas */}
-          <div className="grid grid-cols-4 gap-4 pt-4 border-t border-gray-100">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-              <p className="text-xs text-gray-500 mt-1">Total</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-emerald-600">{stats.disponible}</p>
-              <p className="text-xs text-gray-500 mt-1">Disponibles</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-amber-600">{stats.apartada}</p>
-              <p className="text-xs text-gray-500 mt-1">Apartadas</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-red-600">{stats.rentada}</p>
-              <p className="text-xs text-gray-500 mt-1">Rentadas</p>
             </div>
           </div>
         </div>
 
         {/* Plano Interactivo */}
-        <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-6 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 overflow-hidden">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-lg font-bold text-gray-900">Plano Interactivo</h3>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-              </svg>
-              Haga clic en una bodega para ver detalles
-            </div>
+            <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+              Haz clic en una bodega para más información
+            </span>
           </div>
           
-          <div className="relative bg-gradient-to-br from-gray-50 to-white rounded-xl border-2 border-emerald-100 overflow-hidden shadow-inner">
+          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl border-2 border-emerald-200 overflow-hidden relative shadow-inner">
             <canvas ref={hitCanvasRef} width={W} height={H} style={{ display: "none" }} />
             <canvas
               ref={canvasRef}
               width={W}
               height={H}
               onClick={onClick}
-              className="w-full h-auto cursor-pointer block transition-transform duration-300 hover:scale-[1.01]"
+              className="w-full h-auto cursor-pointer block transition-transform hover:scale-[1.01] duration-300"
               style={{ maxWidth: "100%", height: "auto" }}
             />
-            
-            {/* Indicador de interactividad */}
-            <div className="absolute top-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-pulse">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-              </svg>
-              <span className="text-sm font-semibold">Interactivo</span>
-            </div>
           </div>
-        </div>
 
-        {/* Leyenda */}
-        <div className="mt-6 bg-white rounded-xl shadow-lg border border-gray-100 p-5">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Leyenda</h4>
-          <div className="flex flex-wrap gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-emerald-500 rounded border-2 border-emerald-600"></div>
-              <span className="text-sm text-gray-700 font-medium">Disponible</span>
+          {/* Leyenda */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-8 text-sm">
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-emerald-500 rounded"></div>
+              <span className="text-gray-700 font-medium">Disponible</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-amber-500 rounded border-2 border-amber-600"></div>
-              <span className="text-sm text-gray-700 font-medium">Apartada</span>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-amber-500 rounded"></div>
+              <span className="text-gray-700 font-medium">Apartada</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-red-500 rounded border-2 border-red-600"></div>
-              <span className="text-sm text-gray-700 font-medium">Rentada</span>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-red-500 rounded"></div>
+              <span className="text-gray-700 font-medium">Rentada</span>
             </div>
           </div>
         </div>
@@ -520,4 +509,3 @@ export default function Catalogo() {
     </div>
   )
 }
-
