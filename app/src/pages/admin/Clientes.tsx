@@ -63,7 +63,6 @@ export default function Clientes() {
   const [modulo, setModulo] = useState("todos");
   const [planta, setPlanta] = useState<"todas" | "baja" | "alta">("todas");
   const [sortBy, setSortBy] = useState<SortOption>("alfabetico");
-  const [metrosMinimoStr, setMetrosMinimoStr] = useState("");
 
   // Modales
   const [modal, setModal] = useState<Cliente | null>(null);
@@ -131,7 +130,7 @@ export default function Clientes() {
     return ["todos", ...Array.from(set)];
   }, [bodegas]);
 
-  const metrosMinimo = metrosMinimoStr ? parseInt(metrosMinimoStr) : 0;
+  const metrosMinimo = 0;
 
   const filtrados = useMemo(() => {
     let resultado = clientes.filter((c) => {
@@ -145,7 +144,6 @@ export default function Clientes() {
       if (!hayQ) return false;
       if (modulo !== "todos" && c.modulo !== modulo) return false;
       if (planta !== "todas" && c.planta !== planta) return false;
-      if (metrosMinimo > 0 && (c.metros || 0) < metrosMinimo) return false;
       return true;
     });
 
@@ -194,6 +192,7 @@ export default function Clientes() {
     try {
       await updateCliente(cliente.id, cliente);
       setEditModal(null);
+      setModal(null);
       await load();
       setErr("");
     } catch (e: any) {
@@ -340,7 +339,7 @@ export default function Clientes() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border p-4 grid grid-cols-1 md:grid-cols-6 gap-3">
+      <div className="bg-white rounded-xl border p-4 grid grid-cols-1 md:grid-cols-5 gap-3">
         <input
           className="border rounded px-3 py-2"
           placeholder="Buscar por nombre, email o bodega"
@@ -365,14 +364,6 @@ export default function Clientes() {
           <option value="baja">Planta baja</option>
           <option value="alta">Planta alta</option>
         </select>
-        <input
-          type="number"
-          className="border rounded px-3 py-2"
-          placeholder="Mín. m²"
-          value={metrosMinimoStr}
-          onChange={(e) => setMetrosMinimoStr(e.target.value)}
-          min="0"
-        />
         <select
           className="border rounded px-3 py-2"
           value={sortBy}
@@ -386,7 +377,7 @@ export default function Clientes() {
         <button
           className="border rounded px-3 py-2 hover:bg-gray-50"
           onClick={() => {
-            setQ(""); setModulo("todos"); setPlanta("todas"); setSortBy("alfabetico"); setMetrosMinimoStr("");
+            setQ(""); setModulo("todos"); setPlanta("todas"); setSortBy("alfabetico");
           }}
         >
           Limpiar
