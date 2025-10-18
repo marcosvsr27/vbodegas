@@ -373,14 +373,14 @@ export default function Catalogo() {
           </div>
           
           <div className="flex items-center gap-3 slide-in-right">
-            <a href="/admin" className="px-4 py-2.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg font-bold text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg">
+            <a href="/admin/login" className="px-4 py-2.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg font-bold text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg">
               ADMIN
             </a>
             
             <a href="/cliente/login" className="px-4 py-2.5 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-bold text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg">
               LOGIN
             </a>
-
+            
             <button
               onClick={() => setCalculadoraOpen(true)}
               className="relative bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 hover:scale-105 flex items-center gap-2 group"
@@ -645,7 +645,7 @@ export default function Catalogo() {
           <div className="grid md:grid-cols-3 gap-8">
             {[
           { icon: "◆", title: "SEGURIDAD", desc: "Vigilancia 24/7", delay: "stagger-1" },
-          { icon: "◆", title: "CALIDAD", desc: "La mejor calidad estructural como grupo Heva lo saber hacer, Eco-friendly y Protección contra inundaciones", delay: "stagger-2" },
+          { icon: "◆", title: "CALIDAD", desc: "La mejor calidad estructural como grupo Heva lo saber hacer, Eco-friendly y Nivel para protección contra inundaciones", delay: "stagger-2" },
           { icon: "◆", title: "FLEXIBILIDAD", desc: "Nos adaptamos a tus necesidades.", delay: "stagger-3" },
             ].map((b, i) => (
               <div key={i} className={`group border-2 border-gray-200 rounded-xl p-8 hover:border-emerald-400 transition-all bg-white hover:bg-emerald-50/50 float-up ${b.delay} scroll-element glow-border`}>

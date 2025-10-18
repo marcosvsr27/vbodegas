@@ -16,6 +16,7 @@ import { Link } from "react-router-dom";
 import Papa from 'papaparse';
 
 type SortOption = "alfabetico" | "fecha_contrato" | "vencimiento" | "fecha_registro";
+type ClienteStatus = "propuesta" | "aceptado" | "con_contrato";
 
 function diasRestantes(inicio?: string, fin?: string) {
   if (!fin) return null;
@@ -62,6 +63,7 @@ export default function Clientes() {
   const [modulo, setModulo] = useState("todos");
   const [planta, setPlanta] = useState<"todas" | "baja" | "alta">("todas");
   const [sortBy, setSortBy] = useState<SortOption>("alfabetico");
+  const [metrosMinimoStr, setMetrosMinimoStr] = useState("");
 
   // Modales
   const [modal, setModal] = useState<Cliente | null>(null);
@@ -87,7 +89,10 @@ export default function Clientes() {
     bodega_id: "",
     fecha_inicio: "",
     duracion_meses: 1,
-    pago_mensual: 0
+    pago_mensual: 0,
+    status: "propuesta" as ClienteStatus,
+    comentarios: "",
+    descripcion: ""
   });
 
   async function load() {
@@ -107,7 +112,6 @@ export default function Clientes() {
     load();
   }, []);
 
-  // Actualizar precio automáticamente cuando se selecciona bodega
   useEffect(() => {
     if (nuevoCliente.bodega_id) {
       const bodega = bodegas.find(b => b.id === nuevoCliente.bodega_id);
@@ -127,6 +131,8 @@ export default function Clientes() {
     return ["todos", ...Array.from(set)];
   }, [bodegas]);
 
+  const metrosMinimo = metrosMinimoStr ? parseInt(metrosMinimoStr) : 0;
+
   const filtrados = useMemo(() => {
     let resultado = clientes.filter((c) => {
       const lower = q.trim().toLowerCase();
@@ -139,6 +145,7 @@ export default function Clientes() {
       if (!hayQ) return false;
       if (modulo !== "todos" && c.modulo !== modulo) return false;
       if (planta !== "todas" && c.planta !== planta) return false;
+      if (metrosMinimo > 0 && (c.metros || 0) < metrosMinimo) return false;
       return true;
     });
 
@@ -160,7 +167,7 @@ export default function Clientes() {
     });
 
     return resultado;
-  }, [clientes, q, modulo, planta, sortBy]);
+  }, [clientes, q, modulo, planta, sortBy, metrosMinimo]);
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -172,7 +179,8 @@ export default function Clientes() {
       await createCliente(nuevoCliente);
       setNuevoCliente({
         nombre: "", apellidos: "", email: "", telefono: "", regimen_fiscal: "",
-        bodega_id: "", fecha_inicio: "", duracion_meses: 1, pago_mensual: 0
+        bodega_id: "", fecha_inicio: "", duracion_meses: 1, pago_mensual: 0,
+        status: "propuesta", comentarios: "", descripcion: ""
       });
       setCreateModal(false);
       await load();
@@ -283,9 +291,26 @@ export default function Clientes() {
 
   const bodegaSeleccionada = bodegas.find(b => b.id === nuevoCliente.bodega_id);
 
+  const getStatusBadgeColor = (status: ClienteStatus) => {
+    switch(status) {
+      case "propuesta": return "bg-blue-100 text-blue-800";
+      case "aceptado": return "bg-green-100 text-green-800";
+      case "con_contrato": return "bg-purple-100 text-purple-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getStatusLabel = (status: ClienteStatus) => {
+    switch(status) {
+      case "propuesta": return "Propuesta";
+      case "aceptado": return "Aceptado";
+      case "con_contrato": return "Con Contrato";
+      default: return "Desconocido";
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
-      {/* Header con botón de importación */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Base de Datos de Clientes</h1>
         <div className="flex items-center gap-4">
@@ -315,8 +340,7 @@ export default function Clientes() {
         </div>
       )}
 
-      {/* Filtros y ordenamiento */}
-      <div className="bg-white rounded-xl border p-4 grid grid-cols-1 md:grid-cols-5 gap-3">
+      <div className="bg-white rounded-xl border p-4 grid grid-cols-1 md:grid-cols-6 gap-3">
         <input
           className="border rounded px-3 py-2"
           placeholder="Buscar por nombre, email o bodega"
@@ -341,6 +365,14 @@ export default function Clientes() {
           <option value="baja">Planta baja</option>
           <option value="alta">Planta alta</option>
         </select>
+        <input
+          type="number"
+          className="border rounded px-3 py-2"
+          placeholder="Mín. m²"
+          value={metrosMinimoStr}
+          onChange={(e) => setMetrosMinimoStr(e.target.value)}
+          min="0"
+        />
         <select
           className="border rounded px-3 py-2"
           value={sortBy}
@@ -354,14 +386,13 @@ export default function Clientes() {
         <button
           className="border rounded px-3 py-2 hover:bg-gray-50"
           onClick={() => {
-            setQ(""); setModulo("todos"); setPlanta("todas"); setSortBy("alfabetico");
+            setQ(""); setModulo("todos"); setPlanta("todas"); setSortBy("alfabetico"); setMetrosMinimoStr("");
           }}
         >
           Limpiar
         </button>
       </div>
 
-      {/* Tabla de clientes */}
       <div className="bg-white rounded-xl border p-4 overflow-x-auto">
         {loading ? (
           <p className="p-2">Cargando...</p>
@@ -372,6 +403,7 @@ export default function Clientes() {
                 <th className="text-left p-2">Cliente</th>
                 <th className="text-left p-2">Email</th>
                 <th className="text-left p-2">Bodega</th>
+                <th className="text-left p-2">Status</th>
                 <th className="text-left p-2">Contrato</th>
                 <th className="text-left p-2">Estado</th>
                 <th className="text-left p-2">Acciones</th>
@@ -402,6 +434,11 @@ export default function Clientes() {
                       ) : (
                         <span className="text-gray-400">Sin asignar</span>
                       )}
+                    </td>
+                    <td className="p-2">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(c.status || "propuesta")}`}>
+                        {getStatusLabel(c.status || "propuesta")}
+                      </span>
                     </td>
                     <td className="p-2">
                       {c.fecha_inicio && c.fecha_expiracion ? (
@@ -477,7 +514,7 @@ export default function Clientes() {
               })}
               {!filtrados.length && (
                 <tr>
-                  <td colSpan={6} className="p-4 text-center text-gray-500">
+                  <td colSpan={7} className="p-4 text-center text-gray-500">
                     Sin resultados.
                   </td>
                 </tr>
@@ -487,7 +524,6 @@ export default function Clientes() {
         )}
       </div>
 
-      {/* Modal Ver Cliente */}
       {modal && (
         <ClienteDetailModal
           cliente={modal}
@@ -497,155 +533,18 @@ export default function Clientes() {
         />
       )}
 
-      {/* Modal Crear Cliente */}
       {createModal && (
-        <div className="fixed inset-0 bg-black/30 grid place-items-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-xl border w-full max-w-4xl p-6 space-y-4 my-8">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Agregar Nuevo Cliente</h3>
-              <button onClick={() => setCreateModal(false)} className="text-gray-500 hover:text-black">✕</button>
-            </div>
-            
-            <form onSubmit={onCreate} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Nombre(s)</label>
-                  <input
-                    required
-                    className="w-full border rounded px-3 py-2"
-                    value={nuevoCliente.nombre}
-                    onChange={(e) => setNuevoCliente({...nuevoCliente, nombre: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Apellido(s)</label>
-                  <input
-                    className="w-full border rounded px-3 py-2"
-                    value={nuevoCliente.apellidos}
-                    onChange={(e) => setNuevoCliente({...nuevoCliente, apellidos: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Email</label>
-                  <input
-                    type="email"
-                    required
-                    className="w-full border rounded px-3 py-2"
-                    value={nuevoCliente.email}
-                    onChange={(e) => setNuevoCliente({...nuevoCliente, email: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Teléfono</label>
-                  <input
-                    className="w-full border rounded px-3 py-2"
-                    value={nuevoCliente.telefono}
-                    onChange={(e) => setNuevoCliente({...nuevoCliente, telefono: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Régimen Fiscal</label>
-                <select
-                  className="w-full border rounded px-3 py-2"
-                  value={nuevoCliente.regimen_fiscal}
-                  onChange={(e) => setNuevoCliente({...nuevoCliente, regimen_fiscal: e.target.value})}
-                >
-                  <option value="">Seleccionar...</option>
-                  <option value="fisica">Persona Física</option>
-                  <option value="moral">Persona Moral</option>
-                  <option value="actividad_empresarial">Actividad Empresarial</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Bodega Asignada</label>
-                <select
-                  className="w-full border rounded px-3 py-2"
-                  value={nuevoCliente.bodega_id}
-                  onChange={(e) => setNuevoCliente({...nuevoCliente, bodega_id: e.target.value})}
-                >
-                  <option value="">Sin asignar</option>
-                  {bodegas.filter(b => b.estado === "disponible").map(b => (
-                    <option key={b.id} value={b.id}>
-                      {b.number} • {b.planta} • {b.metros}m² • ${b.precio?.toLocaleString()} MXN/mes
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {bodegaSeleccionada && (
-                <div className="bg-gray-50 p-3 rounded border">
-                  <h4 className="font-medium mb-2">Información de la Bodega Seleccionada</h4>
-                  <div className="grid grid-cols-4 gap-4 text-sm">
-                    <div><strong>Módulo:</strong> {(bodegaSeleccionada.number || "").split("-")[0]}</div>
-                    <div><strong>Planta:</strong> {bodegaSeleccionada.planta}</div>
-                    <div><strong>Medidas:</strong> {bodegaSeleccionada.medidas}</div>
-                    <div><strong>Metros:</strong> {bodegaSeleccionada.metros}m²</div>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Fecha de Inicio</label>
-                  <input
-                    type="date"
-                    className="w-full border rounded px-3 py-2"
-                    value={nuevoCliente.fecha_inicio}
-                    onChange={(e) => setNuevoCliente({...nuevoCliente, fecha_inicio: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Duración (meses)</label>
-                  <select
-                    className="w-full border rounded px-3 py-2"
-                    value={nuevoCliente.duracion_meses}
-                    onChange={(e) => setNuevoCliente({...nuevoCliente, duracion_meses: Number(e.target.value)})}
-                  >
-                    {[1,2,3,6,12,24].map(m => (
-                      <option key={m} value={m}>{m} mes{m > 1 ? "es" : ""}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Pago Mensual (MXN)</label>
-                  <input
-                    type="number"
-                    className="w-full border rounded px-3 py-2 bg-gray-50"
-                    value={nuevoCliente.pago_mensual}
-                    onChange={(e) => setNuevoCliente({...nuevoCliente, pago_mensual: Number(e.target.value)})}
-                    readOnly={!!bodegaSeleccionada}
-                    title={bodegaSeleccionada ? "Se llenó automáticamente desde la bodega" : ""}
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setCreateModal(false)}
-                  className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  Crear Cliente
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <CreateClienteModal
+          nuevoCliente={nuevoCliente}
+          setNuevoCliente={setNuevoCliente}
+          bodegas={bodegas}
+          bodegaSeleccionada={bodegaSeleccionada}
+          onCreate={onCreate}
+          onClose={() => setCreateModal(false)}
+          err={err}
+        />
       )}
 
-      {/* Modal Editar Cliente */}
       {editModal && (
         <EditClienteModal
           cliente={editModal}
@@ -655,7 +554,6 @@ export default function Clientes() {
         />
       )}
 
-      {/* Modal Contrato */}
       {contratoModal && (
         <ContratoModal
           cliente={contratoModal}
@@ -664,7 +562,6 @@ export default function Clientes() {
         />
       )}
 
-      {/* Modal Recordatorio */}
       {recordatorioModal && (
         <RecordatorioModal
           cliente={recordatorioModal}
@@ -672,7 +569,6 @@ export default function Clientes() {
         />
       )}
 
-      {/* Modal de Importación CSV */}
       <ImportCSVModal
         isOpen={importModal}
         onClose={() => {
@@ -698,7 +594,201 @@ export default function Clientes() {
 // COMPONENTES AUXILIARES
 // ============================================================
 
-// Componente Modal de Edición
+function CreateClienteModal({ 
+  nuevoCliente, 
+  setNuevoCliente, 
+  bodegas, 
+  bodegaSeleccionada, 
+  onCreate, 
+  onClose, 
+  err 
+}: any) {
+  return (
+    <div className="fixed inset-0 bg-black/30 grid place-items-center p-4 z-50 overflow-y-auto">
+      <div className="bg-white rounded-xl border w-full max-w-4xl p-6 space-y-4 my-8">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Agregar Nuevo Cliente</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-black">✕</button>
+        </div>
+        
+        {err && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded">
+            {err}
+          </div>
+        )}
+        
+        <form onSubmit={onCreate} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Nombre(s)</label>
+              <input
+                required
+                className="w-full border rounded px-3 py-2"
+                value={nuevoCliente.nombre}
+                onChange={(e) => setNuevoCliente({...nuevoCliente, nombre: e.target.value})}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Apellido(s)</label>
+              <input
+                className="w-full border rounded px-3 py-2"
+                value={nuevoCliente.apellidos}
+                onChange={(e) => setNuevoCliente({...nuevoCliente, apellidos: e.target.value})}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <input
+                type="email"
+                required
+                className="w-full border rounded px-3 py-2"
+                value={nuevoCliente.email}
+                onChange={(e) => setNuevoCliente({...nuevoCliente, email: e.target.value})}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Teléfono</label>
+              <input
+                className="w-full border rounded px-3 py-2"
+                value={nuevoCliente.telefono}
+                onChange={(e) => setNuevoCliente({...nuevoCliente, telefono: e.target.value})}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Régimen Fiscal</label>
+              <select
+                className="w-full border rounded px-3 py-2"
+                value={nuevoCliente.regimen_fiscal}
+                onChange={(e) => setNuevoCliente({...nuevoCliente, regimen_fiscal: e.target.value})}
+              >
+                <option value="">Seleccionar...</option>
+                <option value="fisica">Persona Física</option>
+                <option value="moral">Persona Moral</option>
+                <option value="actividad_empresarial">Actividad Empresarial</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Status</label>
+              <select
+                className="w-full border rounded px-3 py-2"
+                value={nuevoCliente.status}
+                onChange={(e) => setNuevoCliente({...nuevoCliente, status: e.target.value as any})}
+              >
+                <option value="propuesta">Propuesta</option>
+                <option value="aceptado">Aceptado</option>
+                <option value="con_contrato">Con Contrato</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Bodega Asignada</label>
+            <select
+              className="w-full border rounded px-3 py-2"
+              value={nuevoCliente.bodega_id}
+              onChange={(e) => setNuevoCliente({...nuevoCliente, bodega_id: e.target.value})}
+            >
+              <option value="">Sin asignar</option>
+              {bodegas.filter(b => b.estado === "disponible").map(b => (
+                <option key={b.id} value={b.id}>
+                  {b.number} • {b.planta} • {b.metros}m² • ${b.precio?.toLocaleString()} MXN/mes
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {bodegaSeleccionada && (
+            <div className="bg-gray-50 p-3 rounded border">
+              <h4 className="font-medium mb-2">Información de la Bodega Seleccionada</h4>
+              <div className="grid grid-cols-4 gap-4 text-sm">
+                <div><strong>Módulo:</strong> {(bodegaSeleccionada.number || "").split("-")[0]}</div>
+                <div><strong>Planta:</strong> {bodegaSeleccionada.planta}</div>
+                <div><strong>Medidas:</strong> {bodegaSeleccionada.medidas}</div>
+                <div><strong>Metros:</strong> {bodegaSeleccionada.metros}m²</div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Fecha de Inicio</label>
+              <input
+                type="date"
+                className="w-full border rounded px-3 py-2"
+                value={nuevoCliente.fecha_inicio}
+                onChange={(e) => setNuevoCliente({...nuevoCliente, fecha_inicio: e.target.value})}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Duración (meses)</label>
+              <input
+                type="number"
+                min="1"
+                className="w-full border rounded px-3 py-2"
+                value={nuevoCliente.duracion_meses}
+                onChange={(e) => setNuevoCliente({...nuevoCliente, duracion_meses: Number(e.target.value)})}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Pago Mensual (MXN)</label>
+              <input
+                type="number"
+                className="w-full border rounded px-3 py-2 bg-gray-50"
+                value={nuevoCliente.pago_mensual}
+                onChange={(e) => setNuevoCliente({...nuevoCliente, pago_mensual: Number(e.target.value)})}
+                readOnly={!!bodegaSeleccionada}
+                title={bodegaSeleccionada ? "Se llenó automáticamente desde la bodega" : ""}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Notas y Observaciones</label>
+            <textarea
+              className="w-full border rounded px-3 py-2 h-20"
+              value={nuevoCliente.comentarios}
+              onChange={(e) => setNuevoCliente({...nuevoCliente, comentarios: e.target.value})}
+              placeholder="Comentarios adicionales sobre el cliente..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Descripción</label>
+            <textarea
+              className="w-full border rounded px-3 py-2 h-20"
+              value={nuevoCliente.descripcion}
+              onChange={(e) => setNuevoCliente({...nuevoCliente, descripcion: e.target.value})}
+              placeholder="Descripción adicional..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Crear Cliente
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function EditClienteModal({ 
   cliente, 
   bodegas, 
@@ -773,6 +863,34 @@ function EditClienteModal({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Régimen Fiscal</label>
+              <select
+                className="w-full border rounded px-3 py-2"
+                value={editData.regimen_fiscal || ""}
+                onChange={(e) => setEditData({...editData, regimen_fiscal: e.target.value})}
+              >
+                <option value="">Seleccionar...</option>
+                <option value="fisica">Persona Física</option>
+                <option value="moral">Persona Moral</option>
+                <option value="actividad_empresarial">Actividad Empresarial</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Status</label>
+              <select
+                className="w-full border rounded px-3 py-2"
+                value={editData.status || "propuesta"}
+                onChange={(e) => setEditData({...editData, status: e.target.value as any})}
+              >
+                <option value="propuesta">Propuesta</option>
+                <option value="aceptado">Aceptado</option>
+                <option value="con_contrato">Con Contrato</option>
+              </select>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium mb-1">Bodega Asignada</label>
             <select
@@ -801,15 +919,13 @@ function EditClienteModal({
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Duración (meses)</label>
-              <select
+              <input
+                type="number"
+                min="1"
                 className="w-full border rounded px-3 py-2"
                 value={editData.duracion_meses || 1}
                 onChange={(e) => setEditData({...editData, duracion_meses: Number(e.target.value)})}
-              >
-                {[1,2,3,6,12,24].map(m => (
-                  <option key={m} value={m}>{m} mes{m > 1 ? "es" : ""}</option>
-                ))}
-              </select>
+              />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Pago Mensual (MXN)</label>
@@ -821,6 +937,26 @@ function EditClienteModal({
                 readOnly={!!bodegaSeleccionada && editData.bodega_id !== cliente.bodega_id}
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Notas y Observaciones</label>
+            <textarea
+              className="w-full border rounded px-3 py-2 h-20"
+              value={editData.comentarios || ""}
+              onChange={(e) => setEditData({...editData, comentarios: e.target.value})}
+              placeholder="Comentarios adicionales sobre el cliente..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Descripción</label>
+            <textarea
+              className="w-full border rounded px-3 py-2 h-20"
+              value={editData.descripcion || ""}
+              onChange={(e) => setEditData({...editData, descripcion: e.target.value})}
+              placeholder="Descripción adicional..."
+            />
           </div>
 
           <div className="flex justify-end gap-3">
@@ -843,7 +979,6 @@ function EditClienteModal({
   );
 }
 
-// Modal de Contrato
 function ContratoModal({ cliente, bodega, onClose }: { cliente: Cliente; bodega?: Bodega; onClose: () => void }) {
   const [contratoFile, setContratoFile] = useState<File | null>(null);
   const [generando, setGenerando] = useState(false);
@@ -1011,7 +1146,6 @@ function ContratoModal({ cliente, bodega, onClose }: { cliente: Cliente; bodega?
   );
 }
 
-// Modal de Recordatorio
 function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: () => void }) {
   const [tipoRecordatorio, setTipoRecordatorio] = useState<"pago" | "renovacion">("pago");
   const [metodo, setMetodo] = useState<"whatsapp" | "email">("whatsapp");
@@ -1019,7 +1153,7 @@ function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: ()
   const diasRestantes = cliente.fecha_expiracion ? 
     dayjs(cliente.fecha_expiracion).diff(dayjs(), "day") : null;
 
-  const mensajePago = `Hola ${cliente.nombre},\n\nTe recordamos que tu pago mensual de la bodega ${cliente.bodega_id} vence en 5 días.\n\nMonto: $${cliente.pago_mensual?.toLocaleString()} MXN\n\n¡Gracias por tu preferencia!\nVBODEGAS - PROYECTO Y ESPACIOS RADA`;
+  const mensajePago = `Hola ${cliente.nombre},\n\nTe recordamos que tu pago mensual de la bodega ${cliente.bodega_id} vence en 5 días.\n\nMonto: ${cliente.pago_mensual?.toLocaleString()} MXN\n\n¡Gracias por tu preferencia!\nVBODEGAS - PROYECTO Y ESPACIOS RADA`;
 
   const mensajeRenovacion = `Hola ${cliente.nombre},\n\nTu contrato de la bodega ${cliente.bodega_id} vence el ${dayjs(cliente.fecha_expiracion).format("DD/MM/YYYY")}.\n\n¿Te gustaría renovarlo? Contáctanos para conocer las opciones disponibles.\n\nVBODEGAS - PROYECTO Y ESPACIOS RADA`;
 
@@ -1120,7 +1254,6 @@ function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: ()
   );
 }
 
-// Modal de Importación CSV
 function ImportCSVModal({ 
   isOpen, 
   onClose, 
@@ -1288,7 +1421,6 @@ function ImportCSVModal({
   );
 }
 
-// Modal de Detalle del Cliente (VERSIÓN COMPLETA CON TABS)
 function ClienteDetailModal({ 
   cliente, 
   bodegas,
@@ -1303,11 +1435,9 @@ function ClienteDetailModal({
   const [activeTab, setActiveTab] = useState<'general' | 'contrato' | 'pagos' | 'documentos'>('general');
   const [editModalOpen, setEditModalOpen] = useState(false);
   
-  // Estados para gestión de pagos
   const [mesesPagados, setMesesPagados] = useState<boolean[]>([]);
   const [guardandoPagos, setGuardandoPagos] = useState(false);
 
-  // Cálculos para gráficos
   const totalContrato = cliente.cargos || 0;
   const pagado = cliente.abonos || 0;
   const porVencer = cliente.saldo || 0;
@@ -1319,7 +1449,6 @@ function ClienteDetailModal({
   const porcentajeVencido = totalContrato > 0 ? (vencido / totalContrato) * 100 : 0;
   const porcentajePorVencer = totalContrato > 0 ? (porVencer / totalContrato) * 100 : 0;
 
-  // Progreso del tiempo del contrato
   const diasTranscurridos = cliente.fecha_inicio && cliente.fecha_expiracion ? 
     dayjs().diff(dayjs(cliente.fecha_inicio), 'day') : 0;
   const diasTotales = cliente.fecha_inicio && cliente.fecha_expiracion ?
@@ -1329,7 +1458,6 @@ function ClienteDetailModal({
   const diasRestantes = cliente.fecha_expiracion ? 
     dayjs(cliente.fecha_expiracion).diff(dayjs(), 'day') : null;
 
-  // Inicializar estados de pagos basándose en los abonos
   useEffect(() => {
     if (pagoMensual > 0) {
       const mesesPagadosCalculados = Math.floor(pagado / pagoMensual);
@@ -1363,11 +1491,11 @@ function ClienteDetailModal({
   
       await updateClientePagos(cliente.id, nuevosAbonos, nuevoSaldo, vencidoHoy);
   
-      alert('✅ Pagos actualizados correctamente');
+      alert('✓ Pagos actualizados correctamente');
       window.location.reload();
     } catch (error: any) {
       console.error('Error guardando pagos:', error);
-      alert('❌ Error al guardar los pagos: ' + error.message);
+      alert('✗ Error al guardar los pagos: ' + error.message);
     } finally {
       setGuardandoPagos(false);
     }
@@ -1378,10 +1506,27 @@ function ClienteDetailModal({
   const saldoActualizado = totalContrato - abonosActualizados;
   const porcentajePagadoActualizado = totalContrato > 0 ? (abonosActualizados / totalContrato) * 100 : 0;
 
+  const getStatusBadgeColor = (status: string) => {
+    switch(status) {
+      case "propuesta": return "bg-blue-100 text-blue-800";
+      case "aceptado": return "bg-green-100 text-green-800";
+      case "con_contrato": return "bg-purple-100 text-purple-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch(status) {
+      case "propuesta": return "Propuesta";
+      case "aceptado": return "Aceptado";
+      case "con_contrato": return "Con Contrato";
+      default: return "Desconocido";
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 grid place-items-center p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-2xl w-full max-w-6xl my-8 shadow-2xl">
-        {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 rounded-t-2xl">
           <div className="flex items-start justify-between">
             <div>
@@ -1394,6 +1539,11 @@ function ClienteDetailModal({
                   <p className="text-blue-100 text-sm">{cliente.email}</p>
                 </div>
               </div>
+              <div className="mt-3">
+                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusBadgeColor(cliente.status || "propuesta")}`}>
+                  {getStatusLabel(cliente.status || "propuesta")}
+                </span>
+              </div>
             </div>
             <button 
               onClick={onClose}
@@ -1403,13 +1553,12 @@ function ClienteDetailModal({
             </button>
           </div>
 
-          {/* Tabs */}
           <div className="flex gap-2 mt-6 border-t border-white/20 pt-4">
             {[
               { id: 'general' as const, label: 'General', icon: '👤' },
               { id: 'contrato' as const, label: 'Contrato', icon: '📄' },
               { id: 'pagos' as const, label: 'Pagos', icon: '💰' },
-              { id: 'documentos' as const, label: 'Documentos', icon: '📁' }
+              { id: 'documentos' as const, label: 'Documentos', icon: '📋' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -1427,13 +1576,10 @@ function ClienteDetailModal({
           </div>
         </div>
 
-        {/* Content */}
         <div className="p-6 max-h-[70vh] overflow-y-auto">
-          {/* TAB: GENERAL */}
           {activeTab === 'general' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Datos Personales */}
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
                   <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-blue-900">
                     <span className="text-2xl">👤</span>
@@ -1452,10 +1598,9 @@ function ClienteDetailModal({
                   </div>
                 </div>
 
-                {/* Bodega Asignada */}
                 <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 border border-purple-200">
                   <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-purple-900">
-                    <span className="text-2xl">🏪</span>
+                    <span className="text-2xl">🪑</span>
                     Bodega Asignada
                   </h3>
                   {cliente.bodega_id ? (
@@ -1478,7 +1623,6 @@ function ClienteDetailModal({
                 </div>
               </div>
 
-              {/* Comentarios y Descripción */}
               {(cliente.comentarios || cliente.descripcion) && (
                 <div className="bg-amber-50 rounded-xl p-5 border border-amber-200">
                   <h3 className="font-semibold text-lg mb-3 flex items-center gap-2 text-amber-900">
@@ -1486,13 +1630,13 @@ function ClienteDetailModal({
                     Notas y Observaciones
                   </h3>
                   {cliente.descripcion && (
-                    <div className="mb-3">
+                    <div className="mb-3 p-3 bg-white rounded">
                       <p className="text-sm font-medium text-gray-700 mb-1">Descripción:</p>
                       <p className="text-gray-600">{cliente.descripcion}</p>
                     </div>
                   )}
                   {cliente.comentarios && (
-                    <div>
+                    <div className="p-3 bg-white rounded">
                       <p className="text-sm font-medium text-gray-700 mb-1">Comentarios:</p>
                       <p className="text-gray-600">{cliente.comentarios}</p>
                     </div>
@@ -1502,7 +1646,6 @@ function ClienteDetailModal({
             </div>
           )}
 
-          {/* TAB: CONTRATO */}
           {activeTab === 'contrato' && (
             <div className="space-y-6">
               <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
@@ -1571,7 +1714,7 @@ function ClienteDetailModal({
                     />
                     <InfoRow 
                       label="Pago Mensual" 
-                      value={`$${(cliente.pago_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`}
+                      value={`${(cliente.pago_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`}
                       highlight
                     />
                   </div>
@@ -1596,39 +1739,35 @@ function ClienteDetailModal({
             </div>
           )}
 
-          {/* TAB: PAGOS */}
           {activeTab === 'pagos' && (
             <div className="space-y-6">
-              {/* Resumen Visual de Pagos */}
               <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-6 border border-indigo-200">
                 <h3 className="font-semibold text-lg mb-6 flex items-center gap-2 text-indigo-900">
                   <span className="text-2xl">💰</span>
                   Estado de Pagos
                 </h3>
 
-                {/* Gráficos Circulares */}
                 <div className="grid grid-cols-3 gap-6 mb-6">
                   <CircularProgress
                     value={porcentajePagadoActualizado}
                     label="Pagado"
                     color="green"
-                    amount={`$${abonosActualizados.toLocaleString('es-MX')}`}
+                    amount={`${abonosActualizados.toLocaleString('es-MX')}`}
                   />
                   <CircularProgress
                     value={totalContrato > 0 ? (saldoActualizado / totalContrato) * 100 : 0}
                     label="Saldo Pendiente"
                     color="amber"
-                    amount={`$${saldoActualizado.toLocaleString('es-MX')}`}
+                    amount={`${saldoActualizado.toLocaleString('es-MX')}`}
                   />
                   <CircularProgress
                     value={porcentajeVencido}
                     label="Vencido"
                     color="red"
-                    amount={`$${vencido.toLocaleString('es-MX')}`}
+                    amount={`${vencido.toLocaleString('es-MX')}`}
                   />
                 </div>
 
-                {/* Barra de Progreso Total */}
                 <div className="bg-white rounded-lg p-4">
                   <div className="flex justify-between mb-2">
                     <span className="text-sm font-medium text-gray-700">Progreso Total de Pagos</span>
@@ -1643,7 +1782,6 @@ function ClienteDetailModal({
                 </div>
               </div>
 
-              {/* Desglose de Montos */}
               <div className="grid grid-cols-3 gap-4">
                 <MontoCard
                   icon="📊"
@@ -1667,7 +1805,6 @@ function ClienteDetailModal({
                 />
               </div>
 
-              {/* Gestión Mensual de Pagos */}
               <div className="bg-white rounded-xl p-6 border-2 border-blue-200">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-semibold text-lg flex items-center gap-2 text-gray-900">
@@ -1699,7 +1836,6 @@ function ClienteDetailModal({
                     </p>
                   </div>
 
-                  {/* Timeline de Meses */}
                   <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {Array.from({ length: duracionMeses }).map((_, index) => {
                       const fechaMes = cliente.fecha_inicio 
@@ -1736,7 +1872,6 @@ function ClienteDetailModal({
                     })}
                   </div>
 
-                  {/* Resumen de Pagos */}
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mt-4">
                     <div className="grid grid-cols-3 gap-4 text-center">
                       <div>
@@ -1760,12 +1895,11 @@ function ClienteDetailModal({
             </div>
           )}
 
-          {/* TAB: DOCUMENTOS */}
           {activeTab === 'documentos' && (
             <div className="space-y-6">
               <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200">
                 <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-gray-900">
-                  <span className="text-2xl">📁</span>
+                  <span className="text-2xl">📋</span>
                   Gestión de Documentos
                 </h3>
                 
@@ -1790,7 +1924,7 @@ function ClienteDetailModal({
                   />
                   <DocumentCard
                     title="Firma Digital"
-                    icon="✍️"
+                    icon="✏️"
                     status="pendiente"
                     action="Solicitar"
                   />
@@ -1800,7 +1934,6 @@ function ClienteDetailModal({
           )}
         </div>
 
-        {/* Footer */}
         <div className="border-t p-4 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
           <button
             onClick={onClose}
@@ -1817,7 +1950,6 @@ function ClienteDetailModal({
         </div>
       </div>
 
-      {/* Modal de Edición anidado */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/50 grid place-items-center p-4 z-[60]">
           <EditClienteModal
@@ -1836,7 +1968,6 @@ function ClienteDetailModal({
   );
 }
 
-// Componentes auxiliares para el modal de detalle
 function InfoRow({ label, value, icon, highlight }: { 
   label: string; 
   value: string; 
@@ -1968,4 +2099,3 @@ function DocumentCard({ title, icon, status, action }: {
     </div>
   );
 }
-
