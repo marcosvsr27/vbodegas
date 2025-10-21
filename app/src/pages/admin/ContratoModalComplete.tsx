@@ -54,13 +54,47 @@ export function ContratoModalComplete({ cliente, bodega, bodegas, onClose }: Con
     fecha_expiracion: cliente.fecha_expiracion || '',
     deposito: cliente.deposito || bodegaActual?.precio || cliente.pago_mensual || 0,
     
-    // Personas autorizadas
-    autorizados: cliente.autorizados || [
-      { fecha: '', nombre: '', tipo: 'temporal' as const },
-      { fecha: '', nombre: '', tipo: 'temporal' as const },
-      { fecha: '', nombre: '', tipo: 'temporal' as const },
-    ]
-  });
+    autorizados: (() => {
+        try {
+          if (!cliente.autorizados) {
+            return [
+              { fecha: '', nombre: '', tipo: 'temporal' as const },
+              { fecha: '', nombre: '', tipo: 'temporal' as const },
+              { fecha: '', nombre: '', tipo: 'temporal' as const },
+            ];
+          }
+          
+          // Si es string, parsear
+          if (typeof cliente.autorizados === 'string') {
+            const parsed = JSON.parse(cliente.autorizados);
+            return Array.isArray(parsed) ? parsed : [
+              { fecha: '', nombre: '', tipo: 'temporal' as const },
+              { fecha: '', nombre: '', tipo: 'temporal' as const },
+              { fecha: '', nombre: '', tipo: 'temporal' as const },
+            ];
+          }
+          
+          // Si ya es array, usarlo
+          if (Array.isArray(cliente.autorizados)) {
+            return cliente.autorizados;
+          }
+          
+          // Default
+          return [
+            { fecha: '', nombre: '', tipo: 'temporal' as const },
+            { fecha: '', nombre: '', tipo: 'temporal' as const },
+            { fecha: '', nombre: '', tipo: 'temporal' as const },
+          ];
+        } catch (e) {
+          console.error("Error parseando autorizados:", e);
+          return [
+            { fecha: '', nombre: '', tipo: 'temporal' as const },
+            { fecha: '', nombre: '', tipo: 'temporal' as const },
+            { fecha: '', nombre: '', tipo: 'temporal' as const },
+          ];
+        }
+      })()
+    });
 
   // Actualizar cuando cambie la bodega actual
   useEffect(() => {
