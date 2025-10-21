@@ -546,13 +546,14 @@ export default function Clientes() {
         />
       )}
 
-      {contratoModal && (
-        <ContratoModal
-          cliente={contratoModal}
-          bodega={bodegas.find(b => b.id === contratoModal.bodega_id)}
-          onClose={() => setContratoModal(null)}
-        />
-      )}
+{contratoModal && (
+  <ContratoModal
+    cliente={contratoModal}
+    bodega={bodegas.find(b => b.id === contratoModal.bodega_id)}
+    bodegas={bodegas}  // 👈 Agregar esta línea
+    onClose={() => setContratoModal(null)}
+  />
+)}
 
       {recordatorioModal && (
         <RecordatorioModal
@@ -975,12 +976,23 @@ function EditClienteModal({
 
 // ContratoModal
 
-function ContratoModal({ cliente, bodega, onClose }: { cliente: Cliente; bodega?: Bodega; onClose: () => void }) {
+// ✅ Versión corregida:
+function ContratoModal({ 
+  cliente, 
+  bodega, 
+  bodegas,  // 👈 Agregar este parámetro
+  onClose 
+}: { 
+  cliente: Cliente; 
+  bodega?: Bodega; 
+  bodegas: Bodega[];  // 👈 Agregar este tipo
+  onClose: () => void; 
+}) {
   return (
     <ContratoModalComplete 
       cliente={cliente} 
       bodega={bodega}
-      bodegas={bodegas}  // 👈 Pasar el array de bodegas
+      bodegas={bodegas}  // ✅ Ahora sí está disponible
       onClose={onClose} 
     />
   );
