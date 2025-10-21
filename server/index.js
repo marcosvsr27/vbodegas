@@ -608,7 +608,9 @@ app.patch("/api/admin/clientes/:id", authMiddleware, async (req, res) => {
       return res.status(403).json({ error: "Solo admins" });
     }
     
-    const { nombre, apellidos, email, telefono, regimen_fiscal, bodega_id, fecha_inicio, duracion_meses, pago_mensual } = req.body;
+    const { nombre, apellidos, email, telefono, regimen_fiscal, bodega_id, fecha_inicio, duracion_meses, pago_mensual, status, comentarios, descripcion } = req.body;
+    
+
     
     let fecha_expiracion = null;
     if (fecha_inicio && duracion_meses) {
@@ -621,12 +623,14 @@ app.patch("/api/admin/clientes/:id", authMiddleware, async (req, res) => {
     await query.run(`
       UPDATE clientes 
       SET nombre=?, apellidos=?, email=?, telefono=?, regimen_fiscal=?, 
-          bodega_id=?, fecha_inicio=?, duracion_meses=?, fecha_expiracion=?, pago_mensual=? 
+          bodega_id=?, fecha_inicio=?, duracion_meses=?, fecha_expiracion=?, pago_mensual=?,
+          status=?, comentarios=?, descripcion=?
       WHERE id=?
     `, [
       nombre, apellidos || "", email, telefono || "", regimen_fiscal || "", 
       bodega_id || null, fecha_inicio || null, duracion_meses || 1, 
-      fecha_expiracion, pago_mensual || 0, req.params.id
+      fecha_expiracion, pago_mensual || 0, status || "propuesta", 
+      comentarios || "", descripcion || "", req.params.id
     ]);
     
     res.json({ ok: true });
@@ -642,9 +646,7 @@ app.patch("/api/admin/clientes/:id/pagos", authMiddleware, async (req, res) => {
     if (!["admin", "superadmin", "editor"].includes(req.user.rol)) {
       return res.status(403).json({ error: "Solo admins pueden actualizar pagos" });
     }
-
     const { abonos, saldo, vencido_hoy } = req.body;
-    
     await query.run(`
       UPDATE clientes 
       SET abonos=?, saldo=?, vencido_hoy=?
