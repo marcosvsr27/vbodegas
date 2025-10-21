@@ -973,8 +973,17 @@ function EditClienteModal({
 
 
 
+// ContratoModal
+
 function ContratoModal({ cliente, bodega, onClose }: { cliente: Cliente; bodega?: Bodega; onClose: () => void }) {
-  return <ContratoModalComplete cliente={cliente} bodega={bodega} onClose={onClose} />;
+  return (
+    <ContratoModalComplete 
+      cliente={cliente} 
+      bodega={bodega}
+      bodegas={bodegas}  // 👈 Pasar el array de bodegas
+      onClose={onClose} 
+    />
+  );
 }
 
 function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: () => void }) {

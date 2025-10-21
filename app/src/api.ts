@@ -486,6 +486,62 @@ export async function subirDocumentos(contratoId: string, ineFile: File, firmaFi
   return r.json();
 }
 
+// En api.ts, agregar:
+
+export async function actualizarDatosContrato(clienteId: string, datos: any) {
+  const r = await baseFetch(`/admin/clientes/${clienteId}/actualizar-datos-contrato`, {
+    method: "PATCH",
+    body: JSON.stringify(datos),
+  });
+  if (!r.ok) throw new Error("Error actualizando datos");
+  return r.json();
+}
+
+// Actualizar generarContratoPDF para aceptar secciones:
+export async function generarContratoPDF(clienteId: string, secciones?: string[]) {
+  const token = localStorage.getItem("token");
+  
+  try {
+    const res = await fetch(`${API_URL}/admin/clientes/${clienteId}/generar-contrato`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ secciones }),
+      credentials: "include",
+    });
+    
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || "Error generando contrato");
+    }
+    
+    // Descargar el PDF
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    
+    const contentDisposition = res.headers.get('Content-Disposition');
+    const filename = contentDisposition
+      ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+      : `Contrato_Cliente_${clienteId}_${Date.now()}.pdf`;
+    
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    
+    return { ok: true, mensaje: "Contrato generado y descargado exitosamente" };
+  } catch (error: any) {
+    console.error("Error generando contrato:", error);
+    throw error;
+  }
+}
+
+
 // -------------------- 🆕 IMPORTAR CSV --------------------
 export async function importarClientesCSV(csvData: string) {
   const res = await baseFetch(`/admin/clientes/importar-csv`, {
@@ -497,6 +553,8 @@ export async function importarClientesCSV(csvData: string) {
     const error = await res.json();
     throw new Error(error.error || "Error importando CSV");
   }
+
+
 
   return res.json();
 }

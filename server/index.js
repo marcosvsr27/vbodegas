@@ -811,7 +811,8 @@ if (!fs.existsSync(CONTRATOS_DIR)) {
 
 
 // ========== ENDPOINT MEJORADO PARA GENERAR CONTRATO PDF ==========
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { formatearDineroContrato } from './utils/numeroALetras.js';
 
 app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req, res) => {
   try {
@@ -820,10 +821,12 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     }
 
     const clienteId = req.params.id;
+    const { secciones } = req.body; // Array de secciones a generar
     
-    // Obtener datos del cliente y bodega
+    // Obtener datos actualizados del cliente y bodega
     const cliente = await query.get(`
-      SELECT c.*, b.number as bodega_number, b.planta, b.medidas, b.area_m2, b.price
+      SELECT c.*, b.number as bodega_number, b.planta as bodega_planta, 
+             b.medidas, b.area_m2, b.price
       FROM clientes c 
       LEFT JOIN bodegas b ON c.bodega_id = b.id
       WHERE c.id=?
@@ -842,8 +845,7 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     
     if (!fs.existsSync(templatePath)) {
       return res.status(500).json({ 
-        error: "Template de contrato no encontrado",
-        info: "Coloca el PDF en server/templates/contrato_template.pdf"
+        error: "Template de contrato no encontrado"
       });
     }
 
@@ -851,7 +853,7 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
     const form = pdfDoc.getForm();
 
-    // Parsear autorizados si existen
+    // Parsear autorizados
     let autorizados = [];
     if (cliente.autorizados) {
       try {
@@ -860,23 +862,33 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
           : cliente.autorizados;
       } catch (e) {
         console.error("Error parseando autorizados:", e);
+        autorizados = [];
       }
     }
 
-    // Helper para setear campos seguros
-    const setFieldSafe = (fieldName, value) => {
+    // Helper para setear campos con autoSize
+    const setFieldSafe = (fieldName, value, maxLength = null) => {
       try {
         const field = form.getTextField(fieldName);
-        field.setText(String(value || ''));
+        let texto = String(value || '');
+        
+        // Truncar si excede maxLength
+        if (maxLength && texto.length > maxLength) {
+          texto = texto.substring(0, maxLength);
+        }
+        
+        field.setText(texto);
+        field.enableReadOnly();
       } catch (error) {
-        console.log(`Campo no encontrado o error: ${fieldName}`);
+        console.log(`Campo no encontrado: ${fieldName}`);
       }
     };
 
     // Formatear fechas
     const formatDate = (dateStr) => {
       if (!dateStr) return '';
-      return new Date(dateStr).toLocaleDateString('es-MX', {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('es-MX', {
         day: '2-digit',
         month: 'long',
         year: 'numeric'
@@ -885,12 +897,25 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
 
     const formatDateShort = (dateStr) => {
       if (!dateStr) return '';
-      return new Date(dateStr).toLocaleDateString('es-MX');
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
     };
 
+    // Datos procesados
     const fechaHoy = formatDate(new Date());
+    const fechaHoyCorta = formatDateShort(new Date());
     const nombreCompleto = `${cliente.nombre || ''} ${cliente.apellidos || ''}`.trim();
-    const precioFormateado = `$${(cliente.pago_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`;
+    
+    // Formatear precios con letra
+    const precioMensual = parseFloat(cliente.pago_mensual || cliente.price || 0);
+    const deposito = parseFloat(cliente.deposito || precioMensual);
+    
+    const precioMensualFormateado = formatearDineroContrato(precioMensual);
+    const depositoFormateado = formatearDineroContrato(deposito);
 
     // ===== PAGE 1 - CONTRATO PRINCIPAL =====
     setFieldSafe('NOMBRE#12', nombreCompleto);
@@ -901,32 +926,33 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     setFieldSafe('CORREO#1', cliente.email || '');
     setFieldSafe('RFC', cliente.rfc || '');
     setFieldSafe('CURP', cliente.curp || '');
-    setFieldSafe('IDENTIFICACION', cliente.tipo_identificacion || 'INE');
+    setFieldSafe('IDENTIFICACION', cliente.tipo_identificacion || '');
     setFieldSafe('NUMERO-IDENTIFICACION', cliente.numero_identificacion || '');
-    setFieldSafe('BIENES', cliente.bienes_almacenar || '');
-    setFieldSafe('MODULO', cliente.modulo || '');
+    setFieldSafe('BIENES', cliente.bienes_almacenar || '', 150);
+    setFieldSafe('MODULO', (cliente.bodega_number || '').split('-')[0] || cliente.modulo || '');
     setFieldSafe('ID-BODEGA#4', cliente.bodega_number || cliente.bodega_id || '');
     setFieldSafe('M2#1', String(cliente.area_m2 || cliente.metros || ''));
 
     // ===== PAGE 2 - TÉRMINOS DEL CONTRATO =====
-    setFieldSafe('DURACION', `${cliente.duracion_meses || 12} meses`);
+    const duracionTexto = `${cliente.duracion_meses || 12} meses`;
+    setFieldSafe('DURACION', duracionTexto);
     setFieldSafe('FECHA-HOY#5', formatDateShort(cliente.fecha_inicio));
     setFieldSafe('FECHA-FIN#1', formatDateShort(cliente.fecha_expiracion));
-    setFieldSafe('PRECIO#1', precioFormateado);
+    setFieldSafe('PRECIO#1', precioMensualFormateado);
 
-    // ===== PAGE 5 - DEPÓSITO =====
-    setFieldSafe('PRECIO#0', `$${(cliente.deposito || cliente.pago_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`);
+    // ===== PAGE 5 - DEPÓSITO Y CORREO =====
+    setFieldSafe('PRECIO#0', depositoFormateado);
     setFieldSafe('CORREO#0', cliente.email || '');
 
-    // ===== PAGE 6 - ANEXO 1 =====
-    setFieldSafe('FECHA HOY#1', fechaHoy);
+    // ===== PAGE 6 - FECHA Y NOMBRE =====
+    setFieldSafe('FECHA HOY#1', fechaHoyCorta);
     setFieldSafe('NOMBRE#11', nombreCompleto);
 
     // ===== PAGE 7 - ANEXO 1 INVENTARIO =====
     setFieldSafe('ID-BODEGA#3', cliente.bodega_number || cliente.bodega_id || '');
     setFieldSafe('M2#0', String(cliente.area_m2 || cliente.metros || ''));
     setFieldSafe('NOMBRE#10', nombreCompleto);
-    setFieldSafe('FECHA-HOY#4', fechaHoy);
+    setFieldSafe('FECHA-HOY#4', fechaHoyCorta);
     setFieldSafe('NOMBRE#9', nombreCompleto);
 
     // ===== PAGE 8 - ANEXO 2 (AUTORIZADOS) =====
@@ -934,22 +960,22 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     setFieldSafe('ID-BODEGA#2', cliente.bodega_number || cliente.bodega_id || '');
     
     // Autorizado 1
-    if (autorizados[0]) {
-      setFieldSafe('FECHA1', formatDateShort(autorizados[0].fecha));
+    if (autorizados[0] && autorizados[0].nombre) {
+      setFieldSafe('FECHA1', formatDateShort(autorizados[0].fecha) || '');
       setFieldSafe('NOMBRE DEL AUTORIZADO1', autorizados[0].nombre);
       setFieldSafe('TIPO DE AUTORIZACION temporal_permanente1', autorizados[0].tipo || 'temporal');
     }
     
     // Autorizado 2
-    if (autorizados[1]) {
-      setFieldSafe('FECHA2', formatDateShort(autorizados[1].fecha));
+    if (autorizados[1] && autorizados[1].nombre) {
+      setFieldSafe('FECHA2', formatDateShort(autorizados[1].fecha) || '');
       setFieldSafe('NOMBRE DEL AUTORIZADO2', autorizados[1].nombre);
       setFieldSafe('TIPO DE AUTORIZACION temporal_permanente2', autorizados[1].tipo || 'temporal');
     }
     
     // Autorizado 3
-    if (autorizados[2]) {
-      setFieldSafe('FECHA3', formatDateShort(autorizados[2].fecha));
+    if (autorizados[2] && autorizados[2].nombre) {
+      setFieldSafe('FECHA3', formatDateShort(autorizados[2].fecha) || '');
       setFieldSafe('NOMBRE DEL AUTORIZADO3', autorizados[2].nombre);
       setFieldSafe('TIPO DE AUTORIZACION temporal_permanente3', autorizados[2].tipo || 'temporal');
     }
@@ -963,7 +989,7 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
 
     // ===== PAGE 10 - ANEXO 4 =====
     setFieldSafe('NOMBRE#4', nombreCompleto);
-    setFieldSafe('FECHA HOY#0', fechaHoy);
+    setFieldSafe('FECHA HOY#0', fechaHoyCorta);
     setFieldSafe('NOMBRE#3', nombreCompleto);
 
     // ===== PAGE 11 - ANEXO 5 =====
@@ -972,30 +998,57 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     setFieldSafe('FECHA-HOY#2', formatDateShort(cliente.fecha_inicio));
     setFieldSafe('FECHA-HOY#3', formatDateShort(cliente.fecha_inicio));
     setFieldSafe('FECHA-FIN#0', formatDateShort(cliente.fecha_expiracion));
-    setFieldSafe('FECHA-HOY#1', fechaHoy);
+    setFieldSafe('FECHA-HOY#1', fechaHoyCorta);
     setFieldSafe('NOMBRE#1', nombreCompleto);
 
     // ===== PAGE 14 - ANEXO 6 =====
-    setFieldSafe('FECHA-HOY#0', fechaHoy);
+    setFieldSafe('FECHA-HOY#0', fechaHoyCorta);
     setFieldSafe('NOMBRE#0', nombreCompleto);
 
-    // Aplanar el formulario (hacer los campos no editables)
-    form.flatten();
+    // Filtrar páginas según secciones seleccionadas (si se especificaron)
+    let pdfFinal = pdfDoc;
+    if (secciones && Array.isArray(secciones) && secciones.length > 0) {
+      const pdfFiltrado = await PDFDocument.create();
+      
+      const paginasPorSeccion = {
+        'contrato': [0, 1, 2, 3, 4, 5, 6], // Páginas 1-7 (índice 0-6)
+        'anexo1': [7], // Página 8
+        'anexo2': [8], // Página 9
+        'anexo3': [9], // Página 10
+        'anexo4': [10], // Página 11
+        'anexo5': [11, 12, 13], // Páginas 12-14
+        'anexo6': [14] // Página 15
+      };
+      
+      const paginasAIncluir = new Set();
+      secciones.forEach(seccion => {
+        const paginas = paginasPorSeccion[seccion] || [];
+        paginas.forEach(p => paginasAIncluir.add(p));
+      });
+      
+      const paginasOrdenadas = Array.from(paginasAIncluir).sort((a, b) => a - b);
+      const copiedPages = await pdfFiltrado.copyPages(pdfDoc, paginasOrdenadas);
+      copiedPages.forEach(page => pdfFiltrado.addPage(page));
+      
+      pdfFinal = pdfFiltrado;
+    }
 
     // Generar el PDF
-    const pdfBytes = await pdfDoc.save();
+    const pdfBytes = await pdfFinal.save();
     
-    // Guardar en disco
-    const fileName = `Contrato_${cliente.nombre.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+    // Nombre del archivo
+    const seccionTexto = secciones && secciones.length > 0 ? `_${secciones.join('_')}` : '_completo';
+    const fileName = `Contrato_${cliente.nombre.replace(/\s+/g, '_')}${seccionTexto}_${Date.now()}.pdf`;
     const outputPath = path.join(CONTRATOS_DIR, fileName);
     fs.writeFileSync(outputPath, pdfBytes);
 
-    // Log de la acción
+    // Log
     broadcast("log", {
       type: "contrato_generado",
       clienteId: clienteId,
       bodegaId: cliente.bodega_id,
       archivo: fileName,
+      secciones: secciones || ['todas'],
       user: req.user?.email || "admin",
       timestamp: new Date().toISOString()
     });
@@ -1008,6 +1061,46 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
   } catch (e) {
     console.error("Error generando contrato:", e);
     res.status(500).json({ error: "Error generando contrato: " + e.message });
+  }
+});
+
+// 🆕 NUEVO ENDPOINT: Auto-guardar datos del cliente
+app.patch("/api/admin/clientes/:id/actualizar-datos-contrato", authMiddleware, async (req, res) => {
+  try {
+    if (!["admin", "superadmin", "editor"].includes(req.user.rol)) {
+      return res.status(403).json({ error: "Permiso denegado" });
+    }
+
+    const { 
+      nacionalidad, actividad, direccion, rfc, curp, 
+      tipo_identificacion, numero_identificacion, bienes_almacenar,
+      deposito, autorizados
+    } = req.body;
+
+    await query.run(`
+      UPDATE clientes 
+      SET nacionalidad=?, actividad=?, direccion=?, rfc=?, curp=?,
+          tipo_identificacion=?, numero_identificacion=?, bienes_almacenar=?,
+          deposito=?, autorizados=?
+      WHERE id=?
+    `, [
+      nacionalidad || null,
+      actividad || null,
+      direccion || null,
+      rfc || null,
+      curp || null,
+      tipo_identificacion || null,
+      numero_identificacion || null,
+      bienes_almacenar || null,
+      deposito || 0,
+      autorizados ? JSON.stringify(autorizados) : null,
+      req.params.id
+    ]);
+
+    res.json({ ok: true, mensaje: "Datos guardados" });
+  } catch (e) {
+    console.error("Error guardando datos:", e);
+    res.status(500).json({ error: e.message });
   }
 });
 

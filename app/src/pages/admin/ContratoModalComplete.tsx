@@ -1,50 +1,58 @@
-
-// Agregar a Clientes.tsx o crear archivo separado
+// Componente COMPLETO Y CORREGIDO del modal para generar contratos
 
 import React, { useState, useEffect } from 'react';
 import type { Cliente, Bodega } from '../../types';
-import { generarContratoPDF } from '../../api';
 
 interface ContratoModalCompleteProps {
   cliente: Cliente;
   bodega?: Bodega;
+  bodegas: Bodega[];
   onClose: () => void;
 }
 
-export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModalCompleteProps) {
+export function ContratoModalComplete({ cliente, bodega, bodegas, onClose }: ContratoModalCompleteProps) {
   const [activeTab, setActiveTab] = useState<'cliente' | 'bodega' | 'contrato' | 'autorizados'>('cliente');
   const [generando, setGenerando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // 🆕 Selector de secciones
+  const [seccionesSeleccionadas, setSeccionesSeleccionadas] = useState<string[]>([
+    'contrato', 'anexo1', 'anexo2', 'anexo3', 'anexo4', 'anexo5', 'anexo6'
+  ]);
+
+  // Obtener bodega actualizada
+  const bodegaActual = bodegas.find(b => b.id === cliente.bodega_id) || bodega;
+
   const [formData, setFormData] = useState({
-    // Datos del cliente (pre-llenados)
+    // Datos del cliente
     nombre: cliente.nombre || '',
     apellidos: cliente.apellidos || '',
     email: cliente.email || '',
     telefono: cliente.telefono || '',
     
-    // Datos adicionales requeridos
+    // Datos adicionales
     nacionalidad: cliente.nacionalidad || '',
     actividad: cliente.actividad || '',
     direccion: cliente.direccion || '',
     rfc: cliente.rfc || '',
     curp: cliente.curp || '',
-    tipo_identificacion: cliente.tipo_identificacion || 'INE',
+    tipo_identificacion: cliente.tipo_identificacion || '',
     numero_identificacion: cliente.numero_identificacion || '',
     bienes_almacenar: cliente.bienes_almacenar || '',
     
-    // Datos de la bodega
+    // Datos de la bodega - CORREGIDO para usar valores correctos
     bodega_id: cliente.bodega_id || '',
-    modulo: cliente.modulo || '',
-    metros: cliente.metros || 0,
-    precio: cliente.pago_mensual || 0,
+    modulo: (bodegaActual?.number || '').split('-')[0] || cliente.modulo || '',
+    metros: bodegaActual?.metros || cliente.metros || 0,
+    precio: bodegaActual?.precio || cliente.pago_mensual || 0,
     
     // Fechas del contrato
     fecha_inicio: cliente.fecha_inicio || new Date().toISOString().split('T')[0],
     duracion_meses: cliente.duracion_meses || 12,
     fecha_expiracion: cliente.fecha_expiracion || '',
-    deposito: cliente.deposito || cliente.pago_mensual || 0,
+    deposito: cliente.deposito || bodegaActual?.precio || cliente.pago_mensual || 0,
     
     // Personas autorizadas
     autorizados: cliente.autorizados || [
@@ -53,6 +61,19 @@ export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModa
       { fecha: '', nombre: '', tipo: 'temporal' as const },
     ]
   });
+
+  // Actualizar cuando cambie la bodega actual
+  useEffect(() => {
+    if (bodegaActual) {
+      setFormData(prev => ({
+        ...prev,
+        metros: bodegaActual.metros || 0,
+        precio: bodegaActual.precio || 0,
+        deposito: prev.deposito || bodegaActual.precio || 0,
+        modulo: (bodegaActual.number || '').split('-')[0] || ''
+      }));
+    }
+  }, [bodegaActual]);
 
   // Calcular fecha de expiración automáticamente
   useEffect(() => {
@@ -74,14 +95,75 @@ export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModa
     { id: 'autorizados' as const, label: 'Personas Autorizadas', icon: '👥' },
   ];
 
-  const handleChange = (field: string, value: any) => {
+  // 🆕 Auto-guardar al cambiar campos importantes
+  const handleChange = async (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Auto-guardar ciertos campos
+    const camposAutoGuardar = [
+      'nacionalidad', 'actividad', 'direccion', 'rfc', 'curp',
+      'tipo_identificacion', 'numero_identificacion', 'bienes_almacenar', 'deposito'
+    ];
+    
+    if (camposAutoGuardar.includes(field)) {
+      debouncedSave({ ...formData, [field]: value });
+    }
+  };
+
+  // Debounce para auto-guardado
+  let saveTimeout: NodeJS.Timeout;
+  const debouncedSave = (data: typeof formData) => {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(async () => {
+      await guardarDatos(data);
+    }, 1000);
+  };
+
+  const guardarDatos = async (data: typeof formData) => {
+    try {
+      setGuardando(true);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/clientes/${cliente.id}/actualizar-datos-contrato`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          nacionalidad: data.nacionalidad,
+          actividad: data.actividad,
+          direccion: data.direccion,
+          rfc: data.rfc,
+          curp: data.curp,
+          tipo_identificacion: data.tipo_identificacion,
+          numero_identificacion: data.numero_identificacion,
+          bienes_almacenar: data.bienes_almacenar,
+          deposito: data.deposito,
+          autorizados: data.autorizados
+        })
+      });
+
+      if (!res.ok) throw new Error("Error guardando");
+    } catch (err) {
+      console.error("Error en auto-guardado:", err);
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const handleAutorizadoChange = (index: number, field: string, value: string) => {
     const newAutorizados = [...formData.autorizados];
     newAutorizados[index] = { ...newAutorizados[index], [field]: value };
     setFormData(prev => ({ ...prev, autorizados: newAutorizados }));
+    debouncedSave({ ...formData, autorizados: newAutorizados });
+  };
+
+  const toggleSeccion = (seccion: string) => {
+    setSeccionesSeleccionadas(prev => 
+      prev.includes(seccion)
+        ? prev.filter(s => s !== seccion)
+        : [...prev, seccion]
+    );
   };
 
   const validateForm = (): boolean => {
@@ -94,19 +176,27 @@ export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModa
       return false;
     }
     if (!formData.nacionalidad || !formData.actividad || !formData.direccion) {
-      setError("Complete todos los campos obligatorios del cliente");
+      setError("Complete: Nacionalidad, Actividad y Dirección");
+      setActiveTab('cliente');
       return false;
     }
     if (!formData.rfc || !formData.curp) {
       setError("RFC y CURP son obligatorios");
+      setActiveTab('cliente');
       return false;
     }
     if (!formData.tipo_identificacion || !formData.numero_identificacion) {
       setError("Complete los datos de identificación");
+      setActiveTab('cliente');
       return false;
     }
     if (!formData.bienes_almacenar) {
       setError("Describa los bienes a almacenar");
+      setActiveTab('cliente');
+      return false;
+    }
+    if (seccionesSeleccionadas.length === 0) {
+      setError("Seleccione al menos una sección para generar");
       return false;
     }
     return true;
@@ -117,33 +207,46 @@ export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModa
     setSuccess("");
 
     if (!validateForm()) {
-      setActiveTab('cliente');
       return;
     }
 
     try {
       setGenerando(true);
 
-      // Primero actualizar el cliente con la nueva información
-      const updateRes = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/clientes/${cliente.id}`, {
-        method: 'PATCH',
+      // Guardar datos primero
+      await guardarDatos(formData);
+
+      // Generar el contrato con secciones seleccionadas
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/clientes/${cliente.id}/generar-contrato`, {
+        method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         credentials: 'include',
-        body: JSON.stringify({
-          ...formData,
-          autorizados: JSON.stringify(formData.autorizados)
-        })
+        body: JSON.stringify({ secciones: seccionesSeleccionadas })
       });
 
-      if (!updateRes.ok) {
-        throw new Error("Error actualizando información del cliente");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error generando contrato");
       }
 
-      // Generar el contrato
-      await generarContratoPDF(cliente.id);
+      // Descargar el PDF
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      const contentDisposition = res.headers.get('Content-Disposition');
+      const filename = contentDisposition
+        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+        : `Contrato_${cliente.nombre}_${Date.now()}.pdf`;
+      
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
       
       setSuccess("✅ Contrato generado y descargado exitosamente");
       
@@ -160,6 +263,16 @@ export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModa
     }
   };
 
+  const secciones = [
+    { id: 'contrato', label: 'Contrato Principal', desc: '7 páginas' },
+    { id: 'anexo1', label: 'Anexo 1', desc: 'Inventario' },
+    { id: 'anexo2', label: 'Anexo 2', desc: 'Autorizaciones' },
+    { id: 'anexo3', label: 'Anexo 3', desc: 'Datos personales' },
+    { id: 'anexo4', label: 'Anexo 4', desc: 'Bienes muebles' },
+    { id: 'anexo5', label: 'Anexo 5', desc: 'Prenda' },
+    { id: 'anexo6', label: 'Anexo 6', desc: 'Reglamento' },
+  ];
+
   return (
     <div className="fixed inset-0 bg-black/50 grid place-items-center p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-2xl w-full max-w-6xl my-8 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -172,7 +285,10 @@ export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModa
               </div>
               <div>
                 <h2 className="text-2xl font-bold">Generar Contrato de Arrendamiento</h2>
-                <p className="text-purple-100 text-sm">Complete la información para generar el contrato PDF</p>
+                <p className="text-purple-100 text-sm flex items-center gap-2">
+                  Complete la información para generar el contrato PDF
+                  {guardando && <span className="text-xs bg-white/20 px-2 py-1 rounded">Guardando...</span>}
+                </p>
               </div>
             </div>
             <button 
@@ -219,7 +335,7 @@ export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModa
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'cliente' && (
             <div className="space-y-6">
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">Información del Arrendatario</h3>
                 <span className="text-sm text-red-500">* Campos obligatorios</span>
               </div>
@@ -260,7 +376,7 @@ export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModa
                     required
                     value={formData.nacionalidad}
                     onChange={(e) => handleChange('nacionalidad', e.target.value)}
-                    placeholder="Ej: Mexicano(a)"
+                    placeholder="Ej: Mexicano(a), Estadounidense"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
@@ -331,7 +447,7 @@ export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModa
                     onChange={(e) => handleChange('rfc', e.target.value.toUpperCase())}
                     placeholder="13 caracteres"
                     maxLength={13}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent uppercase"
                   />
                 </div>
 
@@ -346,25 +462,22 @@ export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModa
                     onChange={(e) => handleChange('curp', e.target.value.toUpperCase())}
                     placeholder="18 caracteres"
                     maxLength={18}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent uppercase"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tipo de Identificación *
+                    Tipo de Identificación * (escribir)
                   </label>
-                  <select
+                  <input
+                    type="text"
                     required
                     value={formData.tipo_identificacion}
                     onChange={(e) => handleChange('tipo_identificacion', e.target.value)}
+                    placeholder="Ej: INE, Pasaporte, Licencia"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
-                    <option value="INE">INE</option>
-                    <option value="Pasaporte">Pasaporte</option>
-                    <option value="Licencia">Licencia de Conducir</option>
-                    <option value="Cedula">Cédula Profesional</option>
-                  </select>
+                  />
                 </div>
 
                 <div>
@@ -408,6 +521,17 @@ export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModa
                   ℹ️ Esta información se carga automáticamente desde la bodega asignada
                 </p>
               </div>
+
+              {bodegaActual && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                  <h4 className="font-semibold text-green-900 mb-2">Bodega Actual</h4>
+                  <div className="grid grid-cols-3 gap-3 text-sm">
+                    <div><strong>ID:</strong> {bodegaActual.number}</div>
+                    <div><strong>Planta:</strong> {bodegaActual.planta}</div>
+                    <div><strong>Medidas:</strong> {bodegaActual.medidas}</div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
@@ -479,7 +603,7 @@ export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModa
                 <h3 className="text-lg font-semibold">Términos del Contrato</h3>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-4 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Fecha de Inicio *
@@ -517,6 +641,49 @@ export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModa
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
                     readOnly
                   />
+                </div>
+              </div>
+
+              {/* 🆕 Selector de Secciones */}
+              <div className="border-2 border-purple-200 rounded-xl p-6 bg-purple-50">
+                <h4 className="font-semibold text-purple-900 mb-4 flex items-center gap-2">
+                  <span className="text-xl">📋</span>
+                  Seleccione las secciones a generar
+                </h4>
+                <div className="grid grid-cols-4 gap-3">
+                  {secciones.map(seccion => (
+                    <button
+                      key={seccion.id}
+                      onClick={() => toggleSeccion(seccion.id)}
+                      className={`p-3 rounded-lg border-2 transition-all text-left ${
+                        seccionesSeleccionadas.includes(seccion.id)
+                          ? 'border-purple-500 bg-purple-100 text-purple-900'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-purple-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium text-sm">{seccion.label}</span>
+                        {seccionesSeleccionadas.includes(seccion.id) && (
+                          <span className="text-purple-600">✓</span>
+                        )}
+                      </div>
+                      <p className="text-xs opacity-75">{seccion.desc}</p>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={() => setSeccionesSeleccionadas(secciones.map(s => s.id))}
+                    className="text-sm px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                  >
+                    Seleccionar Todo
+                  </button>
+                  <button
+                    onClick={() => setSeccionesSeleccionadas([])}
+                    className="text-sm px-4 py-2 border border-purple-600 text-purple-600 rounded hover:bg-purple-50"
+                  >
+                    Deseleccionar Todo
+                  </button>
                 </div>
               </div>
 
@@ -614,36 +781,45 @@ export function ContratoModalComplete({ cliente, bodega, onClose }: ContratoModa
         </div>
 
         {/* Footer */}
-        <div className="border-t p-4 bg-gray-50 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            disabled={generando}
-            className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 font-medium transition-colors disabled:opacity-50"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleGenerar}
-            disabled={generando || !bodega}
-            className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
-          >
-            {generando ? (
-              <>
-                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Generando...
-              </>
+        <div className="border-t p-4 bg-gray-50 flex justify-between items-center">
+          <div className="text-sm text-gray-600">
+            {seccionesSeleccionadas.length > 0 ? (
+              <span>✓ {seccionesSeleccionadas.length} sección(es) seleccionada(s)</span>
             ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                Generar y Descargar Contrato
-              </>
+              <span className="text-red-600">⚠️ Seleccione al menos una sección</span>
             )}
-          </button>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              disabled={generando}
+              className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 font-medium transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleGenerar}
+              disabled={generando || !bodegaActual || seccionesSeleccionadas.length === 0}
+              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {generando ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Generar y Descargar
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
