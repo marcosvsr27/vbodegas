@@ -815,6 +815,8 @@ import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { formatearDineroContrato } from './utils/numeroALetras.js';
 
 
+// server/index.js - Reemplazar el endpoint completo con LOGS DE DEBUG
+
 app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req, res) => {
   try {
     if (!["admin", "superadmin", "editor"].includes(req.user.rol)) {
@@ -824,32 +826,78 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     const clienteId = req.params.id;
     const { secciones } = req.body;
     
-    // Obtener datos del cliente
+    console.log("\n========================================");
+    console.log("🔍 INICIANDO GENERACIÓN DE CONTRATO");
+    console.log("Cliente ID:", clienteId);
+    console.log("========================================\n");
+    
+    // Obtener datos del cliente con TODOS los campos
     const cliente = await query.get(`
-      SELECT c.*, b.number as bodega_number, b.planta as bodega_planta, 
-             b.medidas, b.area_m2, b.price
+      SELECT 
+        c.*,
+        b.id as bodega_id_real,
+        b.number as bodega_number,
+        b.planta as bodega_planta,
+        b.medidas as bodega_medidas,
+        b.area_m2 as bodega_area_m2,
+        b.price as bodega_price
       FROM clientes c 
       LEFT JOIN bodegas b ON c.bodega_id = b.id
       WHERE c.id=?
     `, [clienteId]);
     
+    console.log("\n📊 DATOS RAW DEL CLIENTE:");
+    console.log("----------------------------");
+    console.log("Nombre:", cliente?.nombre);
+    console.log("Apellidos:", cliente?.apellidos);
+    console.log("Email:", cliente?.email);
+    console.log("Teléfono:", cliente?.telefono);
+    console.log("Bodega ID (cliente):", cliente?.bodega_id);
+    console.log("Bodega Number:", cliente?.bodega_number);
+    console.log("Bodega Area M2:", cliente?.bodega_area_m2);
+    console.log("Metros (cliente):", cliente?.metros);
+    console.log("Precio (bodega):", cliente?.bodega_price);
+    console.log("Pago Mensual (cliente):", cliente?.pago_mensual);
+    console.log("Fecha Inicio:", cliente?.fecha_inicio);
+    console.log("Fecha Fin:", cliente?.fecha_expiracion);
+    console.log("Duración Meses:", cliente?.duracion_meses);
+    console.log("Depósito:", cliente?.deposito);
+    console.log("Nacionalidad:", cliente?.nacionalidad);
+    console.log("Actividad:", cliente?.actividad);
+    console.log("Dirección:", cliente?.direccion);
+    console.log("RFC:", cliente?.rfc);
+    console.log("CURP:", cliente?.curp);
+    console.log("Tipo Identificación:", cliente?.tipo_identificacion);
+    console.log("Número Identificación:", cliente?.numero_identificacion);
+    console.log("Bienes Almacenar:", cliente?.bienes_almacenar);
+    console.log("Autorizados RAW:", cliente?.autorizados);
+    console.log("----------------------------\n");
+    
     if (!cliente) {
+      console.error("❌ Cliente no encontrado");
       return res.status(404).json({ error: "Cliente no encontrado" });
     }
 
     if (!cliente.bodega_id) {
+      console.error("❌ Cliente sin bodega asignada");
       return res.status(400).json({ error: "El cliente no tiene bodega asignada" });
     }
 
-    // Cargar PDF
+    // Cargar PDF template
     const templatePath = path.join(__dirname, "templates", "contrato_template.pdf");
     if (!fs.existsSync(templatePath)) {
+      console.error("❌ Template no encontrado en:", templatePath);
       return res.status(500).json({ error: "Template no encontrado" });
     }
+
+    console.log("✅ Template encontrado:", templatePath);
 
     const existingPdfBytes = fs.readFileSync(templatePath);
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
     const form = pdfDoc.getForm();
+
+    console.log("✅ PDF cargado correctamente");
+    console.log("Total de campos en el formulario:", form.getFields().length);
 
     // Parsear autorizados
     let autorizados = [];
@@ -863,78 +911,100 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
           autorizados = [];
         }
       } catch (e) {
-        console.error("Error parseando autorizados:", e);
+        console.error("❌ Error parseando autorizados:", e);
         autorizados = [];
       }
     }
 
-    // Helper mejorado
+    console.log("\n👥 AUTORIZADOS PARSEADOS:");
+    console.log(JSON.stringify(autorizados, null, 2));
+
+    // Helper para setear campos con LOGS DETALLADOS
     const setFieldSafe = (fieldName, value) => {
       try {
         const field = form.getTextField(fieldName);
         let texto = String(value || '');
         field.setText(texto);
         field.enableReadOnly();
-        console.log(`✓ Campo llenado: ${fieldName} = ${texto.substring(0, 50)}`);
+        console.log(`  ✅ ${fieldName} = "${texto.substring(0, 100)}"`);
       } catch (error) {
-        console.log(`✗ Campo no encontrado: ${fieldName}`);
+        console.log(`  ❌ ${fieldName} - CAMPO NO ENCONTRADO EN EL PDF`);
       }
     };
 
     // Formatear fechas
-    const formatDate = (dateStr) => {
-      if (!dateStr) return '';
-      const date = new Date(dateStr);
-      const day = String(date.getDate()).padStart(2, '0');
-      const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 
-                      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-      const month = months[date.getMonth()];
-      const year = date.getFullYear();
-      return `${day} de ${month} del ${year}`;
-    };
-
     const formatDateShort = (dateStr) => {
-      if (!dateStr) return '';
-      const date = new Date(dateStr);
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
-      return `${day}/${month}/${year}`;
+      if (!dateStr) {
+        console.log(`    ⚠️ Fecha vacía recibida`);
+        return '';
+      }
+      try {
+        const date = new Date(dateStr);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const formatted = `${day}/${month}/${year}`;
+        console.log(`    📅 Fecha formateada: ${dateStr} → ${formatted}`);
+        return formatted;
+      } catch (e) {
+        console.error(`    ❌ Error formateando fecha: ${dateStr}`, e);
+        return '';
+      }
     };
 
-    // Preparar datos
+    // ===== PREPARAR TODOS LOS DATOS =====
+    console.log("\n🔧 PREPARANDO DATOS PARA LLENAR:");
+    console.log("=====================================");
+    
     const nombreCompleto = `${cliente.nombre || ''} ${cliente.apellidos || ''}`.trim();
+    console.log("📝 nombreCompleto:", nombreCompleto);
+    
     const bodegaId = cliente.bodega_number || cliente.bodega_id || '';
+    console.log("🏢 bodegaId:", bodegaId);
+    
     const moduloNum = (bodegaId.split('-')[0] || '');
-    const metros = String(cliente.area_m2 || cliente.metros || '');
+    console.log("📦 moduloNum:", moduloNum);
+    
+    const metros = String(cliente.bodega_area_m2 || cliente.metros || '');
+    console.log("📏 metros:", metros);
+    
     const telefono = cliente.telefono || '';
+    console.log("📱 telefono:", telefono);
+    
     const correo = cliente.email || '';
+    console.log("📧 correo:", correo);
     
     const fechaInicio = cliente.fecha_inicio || '';
-    const fechaFin = cliente.fecha_expiracion || '';
-    const fechaHoy = new Date().toISOString().split('T')[0];
+    console.log("📅 fechaInicio:", fechaInicio);
     
-    // Formatear precios
-    const precioMensual = parseFloat(cliente.pago_mensual || cliente.price || 0);
+    const fechaFin = cliente.fecha_expiracion || '';
+    console.log("📅 fechaFin:", fechaFin);
+    
+    const fechaHoy = new Date().toISOString().split('T')[0];
+    console.log("📅 fechaHoy:", fechaHoy);
+    
+    const precioMensual = parseFloat(cliente.pago_mensual || cliente.bodega_price || 0);
+    console.log("💰 precioMensual:", precioMensual);
+    
     const deposito = parseFloat(cliente.deposito || precioMensual);
+    console.log("💰 deposito:", deposito);
     
     const precioFormateado = formatearDineroContrato(precioMensual);
+    console.log("💵 precioFormateado:", precioFormateado);
+    
     const depositoFormateado = formatearDineroContrato(deposito);
+    console.log("💵 depositoFormateado:", depositoFormateado);
     
     const duracionTexto = `${cliente.duracion_meses || 12} meses`;
+    console.log("⏱️ duracionTexto:", duracionTexto);
+    
+    console.log("=====================================\n");
 
-    console.log("\n=== DATOS PARA LLENAR ===");
-    console.log("Nombre:", nombreCompleto);
-    console.log("Bodega:", bodegaId);
-    console.log("Módulo:", moduloNum);
-    console.log("Metros:", metros);
-    console.log("Teléfono:", telefono);
-    console.log("Correo:", correo);
-    console.log("Precio:", precioFormateado);
-    console.log("Depósito:", depositoFormateado);
-    console.log("=========================\n");
+    // ===== LLENAR CAMPOS DEL PDF =====
+    console.log("📝 LLENANDO CAMPOS DEL PDF:");
+    console.log("=====================================\n");
 
-    // ===== PAGE 1 =====
+    console.log("📄 PAGE 1 - CONTRATO PRINCIPAL:");
     setFieldSafe('NOMBRE#12', nombreCompleto);
     setFieldSafe('NACIONALIDAD', cliente.nacionalidad || '');
     setFieldSafe('ACTIVIDAD', cliente.actividad || '');
@@ -950,65 +1020,68 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     setFieldSafe('ID-BODEGA#4', bodegaId);
     setFieldSafe('M2#1', metros);
 
-    // ===== PAGE 2 =====
+    console.log("\n📄 PAGE 2 - TÉRMINOS:");
     setFieldSafe('DURACION', duracionTexto);
     setFieldSafe('FECHA-HOY#5', formatDateShort(fechaInicio));
     setFieldSafe('FECHA-FIN#1', formatDateShort(fechaFin));
     setFieldSafe('PRECIO#1', precioFormateado);
 
-    // ===== PAGE 5 =====
+    console.log("\n📄 PAGE 5 - DEPÓSITO:");
     setFieldSafe('PRECIO#0', depositoFormateado);
     setFieldSafe('CORREO#0', correo);
 
-    // ===== PAGE 6 =====
+    console.log("\n📄 PAGE 6:");
     setFieldSafe('FECHA HOY#1', formatDateShort(fechaHoy));
     setFieldSafe('NOMBRE#11', nombreCompleto);
 
-    // ===== PAGE 7 - ANEXO 1 =====
+    console.log("\n📄 PAGE 7 - ANEXO 1:");
     setFieldSafe('ID-BODEGA#3', bodegaId);
     setFieldSafe('M2#0', metros);
     setFieldSafe('NOMBRE#10', nombreCompleto);
     setFieldSafe('FECHA-HOY#4', formatDateShort(fechaHoy));
     setFieldSafe('NOMBRE#9', nombreCompleto);
 
-    // ===== PAGE 8 - ANEXO 2 (AUTORIZADOS) =====
+    console.log("\n📄 PAGE 8 - ANEXO 2 (AUTORIZADOS):");
     setFieldSafe('NOMBRE#8', nombreCompleto);
     setFieldSafe('ID-BODEGA#2', bodegaId);
     
     // Autorizado 1
     if (autorizados[0] && autorizados[0].nombre) {
+      console.log("  👤 Autorizado 1:");
       setFieldSafe('FECHA1', formatDateShort(autorizados[0].fecha || ''));
       setFieldSafe('NOMBRE DEL AUTORIZADO1', autorizados[0].nombre);
-      setFieldSafe('TIPO DE AUTORIZACION temporal_permanente1', autorizados[0].tipo || 'temporal');
+      setFieldSafe('TIPO DE AUTORIZACION temporal permanente1', autorizados[0].tipo || 'temporal');
     }
     
     // Autorizado 2
     if (autorizados[1] && autorizados[1].nombre) {
+      console.log("  👤 Autorizado 2:");
       setFieldSafe('FECHA2', formatDateShort(autorizados[1].fecha || ''));
       setFieldSafe('NOMBRE DEL AUTORIZADO2', autorizados[1].nombre);
-      setFieldSafe('TIPO DE AUTORIZACION temporal_permanente2', autorizados[1].tipo || 'temporal');
+      setFieldSafe('TIPO DE AUTORIZACION temporal permanente2', autorizados[1].tipo || 'temporal');
     }
     
     // Autorizado 3
     if (autorizados[2] && autorizados[2].nombre) {
+      console.log("  👤 Autorizado 3:");
       setFieldSafe('FECHA3', formatDateShort(autorizados[2].fecha || ''));
       setFieldSafe('NOMBRE DEL AUTORIZADO3', autorizados[2].nombre);
-      setFieldSafe('TIPO DE AUTORIZACION temporal_permanente3', autorizados[2].tipo || 'temporal');
+      setFieldSafe('TIPO DE AUTORIZACION temporal permanente3', autorizados[2].tipo || 'temporal');
     }
     
     setFieldSafe('NOMBRE#7', nombreCompleto);
 
-    // ===== PAGE 9 - ANEXO 3 =====
+    console.log("\n📄 PAGE 9 - ANEXO 3:");
     setFieldSafe('NOMBRE#6', nombreCompleto);
     setFieldSafe('ID-BODEGA#1', bodegaId);
     setFieldSafe('NOMBRE#5', nombreCompleto);
 
-    // ===== PAGE 10 - ANEXO 4 =====
+    console.log("\n📄 PAGE 10 - ANEXO 4:");
     setFieldSafe('NOMBRE#4', nombreCompleto);
     setFieldSafe('FECHA HOY#0', formatDateShort(fechaHoy));
     setFieldSafe('NOMBRE#3', nombreCompleto);
 
-    // ===== PAGE 11 - ANEXO 5 =====
+    console.log("\n📄 PAGE 11 - ANEXO 5:");
     setFieldSafe('NOMBRE#2', nombreCompleto);
     setFieldSafe('ID-BODEGA#0', bodegaId);
     setFieldSafe('FECHA-HOY#2', formatDateShort(fechaInicio));
@@ -1017,15 +1090,19 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     setFieldSafe('FECHA-HOY#1', formatDateShort(fechaHoy));
     setFieldSafe('NOMBRE#1', nombreCompleto);
 
-    // ===== PAGE 14 - ANEXO 6 =====
+    console.log("\n📄 PAGE 14 - ANEXO 6:");
     setFieldSafe('FECHA-HOY#0', formatDateShort(fechaHoy));
     setFieldSafe('NOMBRE#0', nombreCompleto);
 
-    console.log("\n=== FIN DEL LLENADO ===\n");
+    console.log("\n=====================================");
+    console.log("✅ LLENADO COMPLETADO");
+    console.log("=====================================\n");
 
     // Filtrar secciones si se especificaron
     let pdfFinal = pdfDoc;
     if (secciones && Array.isArray(secciones) && secciones.length > 0) {
+      console.log("📋 Filtrando secciones:", secciones.join(', '));
+      
       const pdfFiltrado = await PDFDocument.create();
       
       const paginasPorSeccion = {
@@ -1045,6 +1122,8 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
       });
       
       const paginasOrdenadas = Array.from(paginasAIncluir).sort((a, b) => a - b);
+      console.log("📄 Páginas a incluir:", paginasOrdenadas);
+      
       const copiedPages = await pdfFiltrado.copyPages(pdfDoc, paginasOrdenadas);
       copiedPages.forEach(page => pdfFiltrado.addPage(page));
       
@@ -1052,6 +1131,7 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     }
 
     // Generar PDF
+    console.log("💾 Generando archivo PDF...");
     const pdfBytes = await pdfFinal.save();
     
     // Nombre del archivo
@@ -1059,6 +1139,9 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     const fileName = `Contrato_${cliente.nombre.replace(/\s+/g, '_')}${seccionTexto}_${Date.now()}.pdf`;
     const outputPath = path.join(CONTRATOS_DIR, fileName);
     fs.writeFileSync(outputPath, pdfBytes);
+
+    console.log("✅ PDF guardado:", fileName);
+    console.log("📍 Ruta:", outputPath);
 
     // Log
     broadcast("log", {
@@ -1071,13 +1154,18 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
       timestamp: new Date().toISOString()
     });
 
+    console.log("\n========================================");
+    console.log("🎉 CONTRATO GENERADO EXITOSAMENTE");
+    console.log("========================================\n");
+
     // Enviar
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(Buffer.from(pdfBytes));
 
   } catch (e) {
-    console.error("Error generando contrato:", e);
+    console.error("\n❌ ERROR CRÍTICO:", e);
+    console.error("Stack:", e.stack);
     res.status(500).json({ error: "Error generando contrato: " + e.message });
   }
 });
