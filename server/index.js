@@ -809,7 +809,10 @@ if (!fs.existsSync(CONTRATOS_DIR)) {
   fs.mkdirSync(CONTRATOS_DIR, { recursive: true });
 }
 
-// ========== ENDPOINT PARA GENERAR CONTRATO PDF ==========
+
+// ========== ENDPOINT MEJORADO PARA GENERAR CONTRATO PDF ==========
+import { PDFDocument } from 'pdf-lib';
+
 app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req, res) => {
   try {
     if (!["admin", "superadmin", "editor"].includes(req.user.rol)) {
@@ -834,97 +837,158 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
       return res.status(400).json({ error: "El cliente no tiene bodega asignada" });
     }
 
-    // Preparar datos para el contrato
-    const data = {
-      // ARRENDATARIO
-      arrendatario: {
-        nombre: cliente.nombre || "NOMBRE COMPLETO O RAZÓN SOCIAL",
-        representante: "REPRESENTANTE LEGAL", // Agregar campo en DB si es necesario
-        constitucion: "DATOS DE CONSTITUCIÓN", // Agregar campo en DB
-        domicilio: "DOMICILIO COMPLETO",
-        contacto: `Tel: ${cliente.telefono || "N/A"}, Email: ${cliente.email}`,
-        bienes: "Bienes muebles varios"
-      },
-      
-      // BODEGA
-      bodega: {
-        ident: `Módulo ${cliente.modulo || ""} No. ${cliente.bodega_number || cliente.bodega_id}`,
-        superficie: `${cliente.area_m2 || cliente.metros || 0} metros cuadrados`
-      },
-      
-      // VIGENCIA
-      vigencia: {
-        inicio: cliente.fecha_inicio ? new Date(cliente.fecha_inicio).toLocaleDateString('es-MX') : "FECHA INICIO",
-        fin: cliente.fecha_expiracion ? new Date(cliente.fecha_expiracion).toLocaleDateString('es-MX') : "FECHA FIN"
-      },
-      
-      // PAGOS
-      pagos: {
-        renta_mensual: `$${(cliente.pago_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`,
-        deposito: `$${(cliente.pago_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`,
-        banco: "BBVA Bancomer",
-        cuenta: "0124918231",
-        clabe: "012375001249182317"
-      },
-      
-      // ANEXO 1
-      anexo1: {
-        bodega_linea: `Módulo ${cliente.modulo || ""} No. ${cliente.bodega_number || cliente.bodega_id}`,
-        superficie_linea: `${cliente.area_m2 || cliente.metros || 0} m²`,
-        fecha_hora: new Date().toLocaleString('es-MX', { 
-          day: '2-digit', 
-          month: 'long', 
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      },
-      
-      // ANEXO 2 (personas autorizadas)
-      anexo2: [],
-      
-      // ANEXO 3
-      anexo3: {
-        bodega_linea: `${cliente.bodega_number || cliente.bodega_id}`
-      },
-      
-      // ANEXO 4 (inventario bienes)
-      anexo4: [],
-      
-      // ANEXO 5
-      anexo5: {
-        bodega: `${cliente.bodega_number || cliente.bodega_id}`,
-        inicio: cliente.fecha_inicio ? new Date(cliente.fecha_inicio).toLocaleDateString('es-MX') : "",
-        periodo: `${cliente.duracion_meses || 12} meses`
-      },
-      
-      // ANEXO 6
-      anexo6: {
-        fecha: new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
-      },
-      
-      // FIRMAS
-      firmas: {
-        arrendador: "FRANCISCA RODRÍGUEZ DE ANDA",
-        arrendatario: cliente.nombre || ""
-      }
-    };
-
-    // Rutas de archivos
+    // Cargar el PDF template
     const templatePath = path.join(__dirname, "templates", "contrato_template.pdf");
-    const fileName = `Contrato_${cliente.nombre.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
-    const outputPath = path.join(CONTRATOS_DIR, fileName);
-
-    // Verificar que existe el template
+    
     if (!fs.existsSync(templatePath)) {
       return res.status(500).json({ 
         error: "Template de contrato no encontrado",
-        info: "Coloca el PDF original en server/templates/contrato_template.pdf"
+        info: "Coloca el PDF en server/templates/contrato_template.pdf"
       });
     }
 
+    const existingPdfBytes = fs.readFileSync(templatePath);
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
+    const form = pdfDoc.getForm();
+
+    // Parsear autorizados si existen
+    let autorizados = [];
+    if (cliente.autorizados) {
+      try {
+        autorizados = typeof cliente.autorizados === 'string' 
+          ? JSON.parse(cliente.autorizados) 
+          : cliente.autorizados;
+      } catch (e) {
+        console.error("Error parseando autorizados:", e);
+      }
+    }
+
+    // Helper para setear campos seguros
+    const setFieldSafe = (fieldName, value) => {
+      try {
+        const field = form.getTextField(fieldName);
+        field.setText(String(value || ''));
+      } catch (error) {
+        console.log(`Campo no encontrado o error: ${fieldName}`);
+      }
+    };
+
+    // Formatear fechas
+    const formatDate = (dateStr) => {
+      if (!dateStr) return '';
+      return new Date(dateStr).toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      });
+    };
+
+    const formatDateShort = (dateStr) => {
+      if (!dateStr) return '';
+      return new Date(dateStr).toLocaleDateString('es-MX');
+    };
+
+    const fechaHoy = formatDate(new Date());
+    const nombreCompleto = `${cliente.nombre || ''} ${cliente.apellidos || ''}`.trim();
+    const precioFormateado = `$${(cliente.pago_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`;
+
+    // ===== PAGE 1 - CONTRATO PRINCIPAL =====
+    setFieldSafe('NOMBRE#12', nombreCompleto);
+    setFieldSafe('NACIONALIDAD', cliente.nacionalidad || '');
+    setFieldSafe('ACTIVIDAD', cliente.actividad || '');
+    setFieldSafe('DIRECCION', cliente.direccion || '');
+    setFieldSafe('TELEFONO', cliente.telefono || '');
+    setFieldSafe('CORREO#1', cliente.email || '');
+    setFieldSafe('RFC', cliente.rfc || '');
+    setFieldSafe('CURP', cliente.curp || '');
+    setFieldSafe('IDENTIFICACION', cliente.tipo_identificacion || 'INE');
+    setFieldSafe('NUMERO-IDENTIFICACION', cliente.numero_identificacion || '');
+    setFieldSafe('BIENES', cliente.bienes_almacenar || '');
+    setFieldSafe('MODULO', cliente.modulo || '');
+    setFieldSafe('ID-BODEGA#4', cliente.bodega_number || cliente.bodega_id || '');
+    setFieldSafe('M2#1', String(cliente.area_m2 || cliente.metros || ''));
+
+    // ===== PAGE 2 - TÉRMINOS DEL CONTRATO =====
+    setFieldSafe('DURACION', `${cliente.duracion_meses || 12} meses`);
+    setFieldSafe('FECHA-HOY#5', formatDateShort(cliente.fecha_inicio));
+    setFieldSafe('FECHA-FIN#1', formatDateShort(cliente.fecha_expiracion));
+    setFieldSafe('PRECIO#1', precioFormateado);
+
+    // ===== PAGE 5 - DEPÓSITO =====
+    setFieldSafe('PRECIO#0', `$${(cliente.deposito || cliente.pago_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`);
+    setFieldSafe('CORREO#0', cliente.email || '');
+
+    // ===== PAGE 6 - ANEXO 1 =====
+    setFieldSafe('FECHA HOY#1', fechaHoy);
+    setFieldSafe('NOMBRE#11', nombreCompleto);
+
+    // ===== PAGE 7 - ANEXO 1 INVENTARIO =====
+    setFieldSafe('ID-BODEGA#3', cliente.bodega_number || cliente.bodega_id || '');
+    setFieldSafe('M2#0', String(cliente.area_m2 || cliente.metros || ''));
+    setFieldSafe('NOMBRE#10', nombreCompleto);
+    setFieldSafe('FECHA-HOY#4', fechaHoy);
+    setFieldSafe('NOMBRE#9', nombreCompleto);
+
+    // ===== PAGE 8 - ANEXO 2 (AUTORIZADOS) =====
+    setFieldSafe('NOMBRE#8', nombreCompleto);
+    setFieldSafe('ID-BODEGA#2', cliente.bodega_number || cliente.bodega_id || '');
+    
+    // Autorizado 1
+    if (autorizados[0]) {
+      setFieldSafe('FECHA1', formatDateShort(autorizados[0].fecha));
+      setFieldSafe('NOMBRE DEL AUTORIZADO1', autorizados[0].nombre);
+      setFieldSafe('TIPO DE AUTORIZACION temporal_permanente1', autorizados[0].tipo || 'temporal');
+    }
+    
+    // Autorizado 2
+    if (autorizados[1]) {
+      setFieldSafe('FECHA2', formatDateShort(autorizados[1].fecha));
+      setFieldSafe('NOMBRE DEL AUTORIZADO2', autorizados[1].nombre);
+      setFieldSafe('TIPO DE AUTORIZACION temporal_permanente2', autorizados[1].tipo || 'temporal');
+    }
+    
+    // Autorizado 3
+    if (autorizados[2]) {
+      setFieldSafe('FECHA3', formatDateShort(autorizados[2].fecha));
+      setFieldSafe('NOMBRE DEL AUTORIZADO3', autorizados[2].nombre);
+      setFieldSafe('TIPO DE AUTORIZACION temporal_permanente3', autorizados[2].tipo || 'temporal');
+    }
+    
+    setFieldSafe('NOMBRE#7', nombreCompleto);
+
+    // ===== PAGE 9 - ANEXO 3 =====
+    setFieldSafe('NOMBRE#6', nombreCompleto);
+    setFieldSafe('ID-BODEGA#1', cliente.bodega_number || cliente.bodega_id || '');
+    setFieldSafe('NOMBRE#5', nombreCompleto);
+
+    // ===== PAGE 10 - ANEXO 4 =====
+    setFieldSafe('NOMBRE#4', nombreCompleto);
+    setFieldSafe('FECHA HOY#0', fechaHoy);
+    setFieldSafe('NOMBRE#3', nombreCompleto);
+
+    // ===== PAGE 11 - ANEXO 5 =====
+    setFieldSafe('NOMBRE#2', nombreCompleto);
+    setFieldSafe('ID-BODEGA#0', cliente.bodega_number || cliente.bodega_id || '');
+    setFieldSafe('FECHA-HOY#2', formatDateShort(cliente.fecha_inicio));
+    setFieldSafe('FECHA-HOY#3', formatDateShort(cliente.fecha_inicio));
+    setFieldSafe('FECHA-FIN#0', formatDateShort(cliente.fecha_expiracion));
+    setFieldSafe('FECHA-HOY#1', fechaHoy);
+    setFieldSafe('NOMBRE#1', nombreCompleto);
+
+    // ===== PAGE 14 - ANEXO 6 =====
+    setFieldSafe('FECHA-HOY#0', fechaHoy);
+    setFieldSafe('NOMBRE#0', nombreCompleto);
+
+    // Aplanar el formulario (hacer los campos no editables)
+    form.flatten();
+
     // Generar el PDF
-    await generarContratoPDF(data, templatePath, outputPath);
+    const pdfBytes = await pdfDoc.save();
+    
+    // Guardar en disco
+    const fileName = `Contrato_${cliente.nombre.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+    const outputPath = path.join(CONTRATOS_DIR, fileName);
+    fs.writeFileSync(outputPath, pdfBytes);
 
     // Log de la acción
     broadcast("log", {
@@ -937,12 +1001,9 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     });
 
     // Enviar el archivo
-    res.download(outputPath, fileName, (err) => {
-      if (err) {
-        console.error("Error enviando archivo:", err);
-        res.status(500).json({ error: "Error descargando contrato" });
-      }
-    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(Buffer.from(pdfBytes));
 
   } catch (e) {
     console.error("Error generando contrato:", e);

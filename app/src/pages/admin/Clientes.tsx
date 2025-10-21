@@ -14,6 +14,7 @@ import type { Cliente, Bodega } from "../../types";
 import dayjs from "dayjs";
 import { Link } from "react-router-dom";
 import Papa from 'papaparse';
+import { ContratoModalComplete } from './ContratoModalComplete'; 
 
 type SortOption = "alfabetico" | "fecha_contrato" | "vencimiento" | "fecha_registro";
 type ClienteStatus = "propuesta" | "aceptado" | "con_contrato";
@@ -970,171 +971,10 @@ function EditClienteModal({
   );
 }
 
+
+
 function ContratoModal({ cliente, bodega, onClose }: { cliente: Cliente; bodega?: Bodega; onClose: () => void }) {
-  const [contratoFile, setContratoFile] = useState<File | null>(null);
-  const [generando, setGenerando] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      
-      if (file.type !== 'application/pdf') {
-        setError("Solo se permiten archivos PDF");
-        return;
-      }
-      
-      if (file.size > 10 * 1024 * 1024) {
-        setError("El archivo no debe superar 10MB");
-        return;
-      }
-      
-      setContratoFile(file);
-      setError("");
-      setSuccess(`Archivo seleccionado: ${file.name}`);
-    }
-  };
-
-  const generarContrato = async () => {
-    if (!bodega) {
-      setError("No se puede generar el contrato sin una bodega asignada");
-      return;
-    }
-
-    try {
-      setGenerando(true);
-      setError("");
-      
-      await generarContratoPDFAPI(cliente.id);
-      
-      setSuccess("Contrato generado y descargado exitosamente");
-      
-      setTimeout(() => {
-        onClose();
-      }, 2000);
-      
-    } catch (err: any) {
-      console.error("Error generando contrato:", err);
-      setError(err.message || "Error al generar el contrato. Por favor intenta de nuevo.");
-    } finally {
-      setGenerando(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/30 grid place-items-center p-4 z-50">
-      <div className="bg-white rounded-xl border w-full max-w-2xl p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Gestión de Contrato</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-black">✕</button>
-        </div>
-
-        <div className="bg-blue-50 p-4 rounded border border-blue-200">
-          <h4 className="font-medium mb-2">Cliente: {cliente.nombre} {cliente.apellidos}</h4>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <span className="font-medium">Bodega:</span> {cliente.bodega_id || "Sin asignar"}
-            </div>
-            {bodega && (
-              <>
-                <div>
-                  <span className="font-medium">Superficie:</span> {bodega.metros}m²
-                </div>
-                <div>
-                  <span className="font-medium">Renta mensual:</span> ${bodega.precio?.toLocaleString()} MXN
-                </div>
-                <div>
-                  <span className="font-medium">Ubicación:</span> {bodega.planta}
-                </div>
-              </>
-            )}
-            {!bodega && (
-              <div className="col-span-2">
-                <p className="text-red-600 text-sm">⚠️ Debe asignar una bodega antes de generar el contrato</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {error}
-          </div>
-        )}
-        
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-            ✓ {success}
-          </div>
-        )}
-
-        <div className="space-y-3">
-          <button
-            onClick={generarContrato}
-            disabled={!bodega || generando}
-            className="w-full px-4 py-3 bg-purple-600 text-white rounded hover:bg-purple-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {generando ? (
-              <>
-                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Generando contrato...
-              </>
-            ) : (
-              <>📄 Generar Contrato PDF (con Anexos)</>
-            )}
-          </button>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">o</span>
-            </div>
-          </div>
-
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-            <label className="block text-sm font-medium mb-2">
-              Subir contrato firmado (opcional)
-            </label>
-            <input
-              type="file"
-              accept=".pdf"
-              onChange={handleFileUpload}
-              className="w-full text-sm text-gray-500
-                file:mr-4 file:py-2 file:px-4
-                file:rounded file:border-0
-                file:text-sm file:font-semibold
-                file:bg-blue-50 file:text-blue-700
-                hover:file:bg-blue-100
-                cursor-pointer"
-            />
-            {contratoFile && (
-              <p className="text-sm text-green-600 mt-2">
-                ✓ Archivo seleccionado: {contratoFile.name}
-              </p>
-            )}
-            <p className="text-xs text-gray-500 mt-2">
-              Máximo 10MB. Solo archivos PDF.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex justify-end pt-2">
-          <button 
-            onClick={onClose} 
-            className="px-4 py-2 border rounded hover:bg-gray-50"
-          >
-            Cerrar
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  return <ContratoModalComplete cliente={cliente} bodega={bodega} onClose={onClose} />;
 }
 
 function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: () => void }) {

@@ -148,3 +148,53 @@ export interface CSVImportResult {
   actualizados: number;
   detalles: string[];
 }
+
+
+export interface Cliente {
+  id: string;
+  nombre: string;
+  apellidos?: string;
+  email: string;
+  telefono?: string;
+  
+  // 🆕 Nuevos campos de identificación
+  nacionalidad?: string;
+  actividad?: string;
+  direccion?: string;
+  rfc?: string;
+  curp?: string;
+  tipo_identificacion?: string;
+  numero_identificacion?: string;
+  bienes_almacenar?: string;
+  deposito?: number;
+  autorizados?: Array<{
+    fecha: string;
+    nombre: string;
+    tipo: 'temporal' | 'permanente';
+  }>;
+  
+  // Campos existentes...
+  regimen_fiscal?: string;
+  bodega_id?: string;
+  modulo?: string;
+  planta?: "baja" | "alta";
+  medidas?: string;
+  metros?: number;
+  fecha_inicio?: string;
+  duracion_meses?: number;
+  fecha_expiracion?: string;
+  pago_mensual?: number;
+  fecha_registro?: string;
+  estado_contrato?: "activo" | "proximo_vencer" | "vencido" | "sin_contrato";
+  contratos?: ClienteContrato[];
+  tipo_contrato?: string;
+  vencido_hoy?: number;
+  saldo?: number;
+  abonos?: number;
+  cargos?: number;
+  fecha_emision?: string;
+  descripcion?: string;
+  factura?: string;
+  comentarios?: string;
+  status?: "propuesta" | "aceptado" | "con_contrato";
+}
