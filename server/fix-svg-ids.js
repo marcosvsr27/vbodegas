@@ -6,8 +6,8 @@ import { parse } from "csv-parse/sync";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CSV_PATH = path.join(__dirname, "data", "bodegas.csv");
-const BAJA_SVG = path.join(__dirname, "../app/public/baja.svg");
-const ALTA_SVG = path.join(__dirname, "../app/public/alta.svg");
+const BAJA_SVG = path.join(__dirname, "../app/public/baja.png");
+const ALTA_SVG = path.join(__dirname, "../app/public/alta.png");
 
 // Leer CSV
 const csv = fs.readFileSync(CSV_PATH, "utf8");

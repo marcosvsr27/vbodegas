@@ -146,11 +146,11 @@ export default function AdminPanel() {
         imageCache.current[src] = i;
       }
     };
-    preload("/baja.svg");
-    preload("/alta.svg");
+    preload("/baja.png");
+    preload("/alta.png");
   }, []);
 
-  const fondoSrc = planta === "baja" ? "/baja.svg" : "/alta.svg";
+  const fondoSrc = planta === "baja" ? "/baja.png" : "/alta.png";
 
   const modulosDisponibles = useMemo(() => {
     const set = new Set(

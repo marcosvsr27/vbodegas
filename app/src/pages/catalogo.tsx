@@ -114,11 +114,11 @@ export default function Catalogo() {
         imageCache.current[src] = img
       }
     }
-    loadImage("/baja.svg")
-    loadImage("/alta.svg")
+    loadImage("/baja.png")
+    loadImage("/alta.png")
   }, [])
 
-  const fondoSrc = planta === "baja" ? "/baja.svg" : "/alta.svg"
+  const fondoSrc = planta === "baja" ? "/baja.png" : "/alta.png"
 
   const optimizedPolys = useMemo(() => {
     let polys = bodegas.filter(b => b.planta === planta && activos[b.estado])
