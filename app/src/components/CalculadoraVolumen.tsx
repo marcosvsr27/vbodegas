@@ -23,7 +23,7 @@ interface CalculadoraVolumenProps {
 }
 
 const itemsPreestablecidos = [
-  { nombre: "Cajeeee pequeña", largo: 40, ancho: 30, alto: 30 },
+  { nombre: "Caja pequeña", largo: 40, ancho: 30, alto: 30 },
   { nombre: "Caja mediana", largo: 60, ancho: 40, alto: 40 },
   { nombre: "Caja grande", largo: 80, ancho: 60, alto: 50 },
   { nombre: "Electrodoméstico pequeño", largo: 50, ancho: 50, alto: 60 },
