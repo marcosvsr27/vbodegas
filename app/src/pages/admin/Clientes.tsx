@@ -639,7 +639,7 @@ export default function Clientes() {
 // COMPONENTES AUXILIARES
 // ============================================================
 
-import type { Cliente, Bodega } from "../../types";
+
 
 function CreateClienteModal({
   nuevoCliente,
