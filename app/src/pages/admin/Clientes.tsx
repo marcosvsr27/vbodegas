@@ -389,7 +389,10 @@ export default function Clientes() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Base de Datos de Clientes</h1>
+        <h1 className="text-2xl font-semibold">
+          Base de Datos de Clientes
+          <span className="ml-2 text-lg text-gray-500 font-normal">({clientes.length} registros)</span>
+        </h1>
         <div className="flex items-center gap-4">
           <button
             onClick={() => setImportModal(true)}
