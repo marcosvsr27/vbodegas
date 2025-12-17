@@ -14,7 +14,8 @@ import type { Cliente, Bodega } from "../../types";
 import dayjs from "dayjs";
 import { Link } from "react-router-dom";
 import Papa from 'papaparse';
-import { ContratoModalComplete } from './ContratoModalComplete'; 
+import * as XLSX from 'xlsx';
+import { ContratoModalComplete } from './ContratoModalComplete';
 
 type SortOption = "alfabetico" | "fecha_contrato" | "vencimiento" | "fecha_registro";
 type ClienteStatus = "propuesta" | "aceptado" | "con_contrato";
@@ -71,11 +72,11 @@ export default function Clientes() {
   const [editModal, setEditModal] = useState<Cliente | null>(null);
   const [recordatorioModal, setRecordatorioModal] = useState<Cliente | null>(null);
   const [contratoModal, setContratoModal] = useState<Cliente | null>(null);
-  
-  // Estados para importación CSV
+
+  // Estados para importación CSV/Excel
   const [importModal, setImportModal] = useState(false);
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvPreview, setCsvPreview] = useState<any[]>([]);
+  const [fileToImport, setFileToImport] = useState<File | null>(null);
+  const [previewData, setPreviewData] = useState<any[]>([]);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
 
@@ -136,7 +137,7 @@ export default function Clientes() {
   const filtrados = useMemo(() => {
     let resultado = clientes.filter((c) => {
       const lower = q.trim().toLowerCase();
-      const hayQ = !lower || 
+      const hayQ = !lower ||
         c.nombre?.toLowerCase().includes(lower) ||
         c.apellidos?.toLowerCase().includes(lower) ||
         c.email?.toLowerCase().includes(lower) ||
@@ -174,7 +175,7 @@ export default function Clientes() {
       if (!nuevoCliente.nombre || !nuevoCliente.email) {
         return setErr("Nombre y email son obligatorios");
       }
-      
+
       await createCliente(nuevoCliente);
       setNuevoCliente({
         nombre: "", apellidos: "", email: "", telefono: "", regimen_fiscal: "",
@@ -224,36 +225,89 @@ export default function Clientes() {
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    if (!file.name.endsWith('.csv')) {
-      setErr("Por favor selecciona un archivo CSV");
-      return;
-    }
-    
-    setCsvFile(file);
-    
-    Papa.parse(file, {
-      header: true,
-      preview: 5,
-      complete: (results) => {
-        setCsvPreview(results.data);
-      },
-      error: (error) => {
-        setErr("Error leyendo archivo: " + error.message);
+
+    setFileToImport(file);
+    setErr("");
+
+    try {
+      if (file.name.endsWith('.csv')) {
+        Papa.parse(file, {
+          header: true,
+          preview: 5,
+          complete: (results) => {
+            setPreviewData(results.data);
+          },
+          error: (error) => {
+            setErr("Error leyendo archivo CSV: " + error.message);
+          }
+        });
+      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+
+        // Convertir a JSON crudo (array de arrays) para buscar cabecera
+        const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+
+        // Buscar fila de cabecera (contiene "Correo" o "Propiedad" o "Cliente")
+        let headerRowIndex = 0;
+        for (let i = 0; i < Math.min(20, rawData.length); i++) {
+          const row = rawData[i];
+          const rowStr = JSON.stringify(row).toLowerCase();
+          if (rowStr.includes("correo") || rowStr.includes("propiedad") || rowStr.includes("cliente")) {
+            headerRowIndex = i;
+            break;
+          }
+        }
+
+        // Obtener datos finales usando esa fila como cabecera
+        const jsonData = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex });
+        setPreviewData(jsonData.slice(0, 5));
+      } else {
+        setErr("Formato no soportado. Usa CSV o Excel (.xlsx, .xls)");
       }
-    });
+    } catch (error: any) {
+      setErr("Error leyendo archivo: " + error.message);
+    }
   }
 
-  async function procesarCSV() {
-    if (!csvFile) return;
-    
+  async function procesarImportacion() {
+    if (!fileToImport) return;
+
     setImporting(true);
     setErr("");
     setImportResult(null);
-    
+
     try {
-      const text = await csvFile.text();
-      
+      let payload: any = {};
+
+      if (fileToImport.name.endsWith('.csv')) {
+        const text = await fileToImport.text();
+        payload = { csvData: text };
+      } else {
+        // Para Excel, enviamos el JSON completo ya procesado
+        const buffer = await fileToImport.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+
+        // Re-detectar cabecera para asegurar envío correcto
+        const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+        let headerRowIndex = 0;
+        for (let i = 0; i < Math.min(20, rawData.length); i++) {
+          const row = rawData[i];
+          const rowStr = JSON.stringify(row).toLowerCase();
+          if (rowStr.includes("correo") || rowStr.includes("propiedad") || rowStr.includes("cliente")) {
+            headerRowIndex = i;
+            break;
+          }
+        }
+
+        const jsonData = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex });
+        payload = { jsonData };
+      }
+
       const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787'}/api/admin/clientes/importar-csv`, {
         method: 'POST',
         headers: {
@@ -261,29 +315,29 @@ export default function Clientes() {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         credentials: 'include',
-        body: JSON.stringify({ csvData: text })
+        body: JSON.stringify(payload)
       });
-      
+
       const data = await res.json();
-      
+
       if (!res.ok) {
-        throw new Error(data.error || 'Error importando CSV');
+        throw new Error(data.error || 'Error importando archivo');
       }
-      
+
       setImportResult(data.resultado);
       await load();
-      
+
       if (data.resultado.errores === 0) {
         setTimeout(() => {
           setImportModal(false);
-          setCsvFile(null);
-          setCsvPreview([]);
+          setFileToImport(null);
+          setPreviewData([]);
           setImportResult(null);
         }, 3000);
       }
-      
+
     } catch (error: any) {
-      setErr(error.message || "Error importando CSV");
+      setErr(error.message || "Error importando archivo");
     } finally {
       setImporting(false);
     }
@@ -292,7 +346,7 @@ export default function Clientes() {
   const bodegaSeleccionada = bodegas.find(b => b.id === nuevoCliente.bodega_id);
 
   const getStatusBadgeColor = (status: ClienteStatus) => {
-    switch(status) {
+    switch (status) {
       case "propuesta": return "bg-blue-100 text-blue-800";
       case "aceptado": return "bg-green-100 text-green-800";
       case "con_contrato": return "bg-purple-100 text-purple-800";
@@ -301,7 +355,7 @@ export default function Clientes() {
   };
 
   const getStatusLabel = (status: ClienteStatus) => {
-    switch(status) {
+    switch (status) {
       case "propuesta": return "Propuesta";
       case "aceptado": return "Aceptado";
       case "con_contrato": return "Con Contrato";
@@ -317,12 +371,12 @@ export default function Clientes() {
           <button
             onClick={() => setImportModal(true)}
             className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2"
-            title="Importar clientes desde CSV"
+            title="Importar clientes desde CSV o Excel"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
-            Importar CSV
+            Importar Excel/CSV
           </button>
           <button
             onClick={() => setCreateModal(true)}
@@ -405,7 +459,7 @@ export default function Clientes() {
               {filtrados.map((c) => {
                 const dias = diasRestantes(c.fecha_inicio, c.fecha_expiracion);
                 const estado = getEstadoContrato(dias);
-                const porcentajeTiempo = dias && c.duracion_meses ? 
+                const porcentajeTiempo = dias && c.duracion_meses ?
                   Math.max(0, Math.min(100, (dias / (c.duracion_meses * 30)) * 100)) : 0;
 
                 return (
@@ -440,10 +494,9 @@ export default function Clientes() {
                           </div>
                           <div className="w-24 bg-gray-200 rounded-full h-2 mt-1">
                             <div
-                              className={`h-2 rounded-full ${
-                                estado === "vencido" ? "bg-red-500" :
-                                estado === "proximo_vencer" ? "bg-amber-500" : "bg-green-500"
-                              }`}
+                              className={`h-2 rounded-full ${estado === "vencido" ? "bg-red-500" :
+                                  estado === "proximo_vencer" ? "bg-amber-500" : "bg-green-500"
+                                }`}
                               style={{ width: `${porcentajeTiempo}%` }}
                             />
                           </div>
@@ -456,15 +509,14 @@ export default function Clientes() {
                       )}
                     </td>
                     <td className="p-2">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        estado === "vencido" ? "bg-red-100 text-red-800" :
-                        estado === "proximo_vencer" ? "bg-amber-100 text-amber-800" :
-                        estado === "activo" ? "bg-green-100 text-green-800" :
-                        "bg-gray-100 text-gray-800"
-                      }`}>
+                      <span className={`px-2 py-1 rounded text-xs ${estado === "vencido" ? "bg-red-100 text-red-800" :
+                          estado === "proximo_vencer" ? "bg-amber-100 text-amber-800" :
+                            estado === "activo" ? "bg-green-100 text-green-800" :
+                              "bg-gray-100 text-gray-800"
+                        }`}>
                         {estado === "vencido" ? "Vencido" :
-                         estado === "proximo_vencer" ? "Por vencer" :
-                         estado === "activo" ? "Activo" : "Sin contrato"}
+                          estado === "proximo_vencer" ? "Por vencer" :
+                            estado === "activo" ? "Activo" : "Sin contrato"}
                       </span>
                     </td>
                     <td className="p-2 space-x-2">
@@ -546,14 +598,14 @@ export default function Clientes() {
         />
       )}
 
-{contratoModal && (
-  <ContratoModal
-    cliente={contratoModal}
-    bodega={bodegas.find(b => b.id === contratoModal.bodega_id)}
-    bodegas={bodegas}  // 👈 Agregar esta línea
-    onClose={() => setContratoModal(null)}
-  />
-)}
+      {contratoModal && (
+        <ContratoModal
+          cliente={contratoModal}
+          bodega={bodegas.find(b => b.id === contratoModal.bodega_id)}
+          bodegas={bodegas}  // 👈 Agregar esta línea
+          onClose={() => setContratoModal(null)}
+        />
+      )}
 
       {recordatorioModal && (
         <RecordatorioModal
@@ -566,17 +618,17 @@ export default function Clientes() {
         isOpen={importModal}
         onClose={() => {
           setImportModal(false);
-          setCsvFile(null);
-          setCsvPreview([]);
+          setFileToImport(null);
+          setPreviewData([]);
           setImportResult(null);
           setErr("");
         }}
-        csvFile={csvFile}
-        csvPreview={csvPreview}
+        csvFile={fileToImport}
+        csvPreview={previewData}
         importing={importing}
         importResult={importResult}
         onFileSelect={handleFileSelect}
-        onProcess={procesarCSV}
+        onProcess={procesarImportacion}
         error={err}
       />
     </div>
@@ -587,14 +639,14 @@ export default function Clientes() {
 // COMPONENTES AUXILIARES
 // ============================================================
 
-function CreateClienteModal({ 
-  nuevoCliente, 
-  setNuevoCliente, 
-  bodegas, 
-  bodegaSeleccionada, 
-  onCreate, 
-  onClose, 
-  err 
+function CreateClienteModal({
+  nuevoCliente,
+  setNuevoCliente,
+  bodegas,
+  bodegaSeleccionada,
+  onCreate,
+  onClose,
+  err
 }: any) {
   return (
     <div className="fixed inset-0 bg-black/30 grid place-items-center p-4 z-50 overflow-y-auto">
@@ -603,13 +655,13 @@ function CreateClienteModal({
           <h3 className="text-lg font-semibold">Agregar Nuevo Cliente</h3>
           <button onClick={onClose} className="text-gray-500 hover:text-black">✕</button>
         </div>
-        
+
         {err && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded">
             {err}
           </div>
         )}
-        
+
         <form onSubmit={onCreate} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -618,7 +670,7 @@ function CreateClienteModal({
                 required
                 className="w-full border rounded px-3 py-2"
                 value={nuevoCliente.nombre}
-                onChange={(e) => setNuevoCliente({...nuevoCliente, nombre: e.target.value})}
+                onChange={(e) => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })}
               />
             </div>
             <div>
@@ -626,7 +678,7 @@ function CreateClienteModal({
               <input
                 className="w-full border rounded px-3 py-2"
                 value={nuevoCliente.apellidos}
-                onChange={(e) => setNuevoCliente({...nuevoCliente, apellidos: e.target.value})}
+                onChange={(e) => setNuevoCliente({ ...nuevoCliente, apellidos: e.target.value })}
               />
             </div>
           </div>
@@ -639,7 +691,7 @@ function CreateClienteModal({
                 required
                 className="w-full border rounded px-3 py-2"
                 value={nuevoCliente.email}
-                onChange={(e) => setNuevoCliente({...nuevoCliente, email: e.target.value})}
+                onChange={(e) => setNuevoCliente({ ...nuevoCliente, email: e.target.value })}
               />
             </div>
             <div>
@@ -647,7 +699,7 @@ function CreateClienteModal({
               <input
                 className="w-full border rounded px-3 py-2"
                 value={nuevoCliente.telefono}
-                onChange={(e) => setNuevoCliente({...nuevoCliente, telefono: e.target.value})}
+                onChange={(e) => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })}
               />
             </div>
           </div>
@@ -658,7 +710,7 @@ function CreateClienteModal({
               <select
                 className="w-full border rounded px-3 py-2"
                 value={nuevoCliente.regimen_fiscal}
-                onChange={(e) => setNuevoCliente({...nuevoCliente, regimen_fiscal: e.target.value})}
+                onChange={(e) => setNuevoCliente({ ...nuevoCliente, regimen_fiscal: e.target.value })}
               >
                 <option value="">Seleccionar...</option>
                 <option value="fisica">Persona Física</option>
@@ -671,7 +723,7 @@ function CreateClienteModal({
               <select
                 className="w-full border rounded px-3 py-2"
                 value={nuevoCliente.status}
-                onChange={(e) => setNuevoCliente({...nuevoCliente, status: e.target.value as any})}
+                onChange={(e) => setNuevoCliente({ ...nuevoCliente, status: e.target.value as any })}
               >
                 <option value="propuesta">Propuesta</option>
                 <option value="aceptado">Aceptado</option>
@@ -685,7 +737,7 @@ function CreateClienteModal({
             <select
               className="w-full border rounded px-3 py-2"
               value={nuevoCliente.bodega_id}
-              onChange={(e) => setNuevoCliente({...nuevoCliente, bodega_id: e.target.value})}
+              onChange={(e) => setNuevoCliente({ ...nuevoCliente, bodega_id: e.target.value })}
             >
               <option value="">Sin asignar</option>
               {bodegas.filter(b => b.estado === "disponible").map(b => (
@@ -715,7 +767,7 @@ function CreateClienteModal({
                 type="date"
                 className="w-full border rounded px-3 py-2"
                 value={nuevoCliente.fecha_inicio}
-                onChange={(e) => setNuevoCliente({...nuevoCliente, fecha_inicio: e.target.value})}
+                onChange={(e) => setNuevoCliente({ ...nuevoCliente, fecha_inicio: e.target.value })}
               />
             </div>
             <div>
@@ -725,7 +777,7 @@ function CreateClienteModal({
                 min="1"
                 className="w-full border rounded px-3 py-2"
                 value={nuevoCliente.duracion_meses}
-                onChange={(e) => setNuevoCliente({...nuevoCliente, duracion_meses: Number(e.target.value)})}
+                onChange={(e) => setNuevoCliente({ ...nuevoCliente, duracion_meses: Number(e.target.value) })}
               />
             </div>
             <div>
@@ -734,7 +786,7 @@ function CreateClienteModal({
                 type="number"
                 className="w-full border rounded px-3 py-2 bg-gray-50"
                 value={nuevoCliente.pago_mensual}
-                onChange={(e) => setNuevoCliente({...nuevoCliente, pago_mensual: Number(e.target.value)})}
+                onChange={(e) => setNuevoCliente({ ...nuevoCliente, pago_mensual: Number(e.target.value) })}
                 readOnly={!!bodegaSeleccionada}
                 title={bodegaSeleccionada ? "Se llenó automáticamente desde la bodega" : ""}
               />
@@ -746,7 +798,7 @@ function CreateClienteModal({
             <textarea
               className="w-full border rounded px-3 py-2 h-20"
               value={nuevoCliente.comentarios}
-              onChange={(e) => setNuevoCliente({...nuevoCliente, comentarios: e.target.value})}
+              onChange={(e) => setNuevoCliente({ ...nuevoCliente, comentarios: e.target.value })}
               placeholder="Comentarios adicionales sobre el cliente..."
             />
           </div>
@@ -756,7 +808,7 @@ function CreateClienteModal({
             <textarea
               className="w-full border rounded px-3 py-2 h-20"
               value={nuevoCliente.descripcion}
-              onChange={(e) => setNuevoCliente({...nuevoCliente, descripcion: e.target.value})}
+              onChange={(e) => setNuevoCliente({ ...nuevoCliente, descripcion: e.target.value })}
               placeholder="Descripción adicional..."
             />
           </div>
@@ -782,16 +834,16 @@ function CreateClienteModal({
   );
 }
 
-function EditClienteModal({ 
-  cliente, 
-  bodegas, 
-  onSave, 
-  onClose 
-}: { 
-  cliente: Cliente; 
-  bodegas: Bodega[]; 
-  onSave: (cliente: Cliente) => void; 
-  onClose: () => void; 
+function EditClienteModal({
+  cliente,
+  bodegas,
+  onSave,
+  onClose
+}: {
+  cliente: Cliente;
+  bodegas: Bodega[];
+  onSave: (cliente: Cliente) => void;
+  onClose: () => void;
 }) {
   const [editData, setEditData] = useState({ ...cliente });
   const bodegaSeleccionada = bodegas.find(b => b.id === editData.bodega_id);
@@ -815,7 +867,7 @@ function EditClienteModal({
           <h3 className="text-lg font-semibold">Editar Cliente</h3>
           <button onClick={onClose} className="text-gray-500 hover:text-black">✕</button>
         </div>
-        
+
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -823,7 +875,7 @@ function EditClienteModal({
               <input
                 className="w-full border rounded px-3 py-2"
                 value={editData.nombre}
-                onChange={(e) => setEditData({...editData, nombre: e.target.value})}
+                onChange={(e) => setEditData({ ...editData, nombre: e.target.value })}
               />
             </div>
             <div>
@@ -831,7 +883,7 @@ function EditClienteModal({
               <input
                 className="w-full border rounded px-3 py-2"
                 value={editData.apellidos || ""}
-                onChange={(e) => setEditData({...editData, apellidos: e.target.value})}
+                onChange={(e) => setEditData({ ...editData, apellidos: e.target.value })}
               />
             </div>
           </div>
@@ -843,7 +895,7 @@ function EditClienteModal({
                 type="email"
                 className="w-full border rounded px-3 py-2"
                 value={editData.email}
-                onChange={(e) => setEditData({...editData, email: e.target.value})}
+                onChange={(e) => setEditData({ ...editData, email: e.target.value })}
               />
             </div>
             <div>
@@ -851,7 +903,7 @@ function EditClienteModal({
               <input
                 className="w-full border rounded px-3 py-2"
                 value={editData.telefono || ""}
-                onChange={(e) => setEditData({...editData, telefono: e.target.value})}
+                onChange={(e) => setEditData({ ...editData, telefono: e.target.value })}
               />
             </div>
           </div>
@@ -862,7 +914,7 @@ function EditClienteModal({
               <select
                 className="w-full border rounded px-3 py-2"
                 value={editData.regimen_fiscal || ""}
-                onChange={(e) => setEditData({...editData, regimen_fiscal: e.target.value})}
+                onChange={(e) => setEditData({ ...editData, regimen_fiscal: e.target.value })}
               >
                 <option value="">Seleccionar...</option>
                 <option value="fisica">Persona Física</option>
@@ -875,7 +927,7 @@ function EditClienteModal({
               <select
                 className="w-full border rounded px-3 py-2"
                 value={editData.status || "propuesta"}
-                onChange={(e) => setEditData({...editData, status: e.target.value as any})}
+                onChange={(e) => setEditData({ ...editData, status: e.target.value as any })}
               >
                 <option value="propuesta">Propuesta</option>
                 <option value="aceptado">Aceptado</option>
@@ -889,7 +941,7 @@ function EditClienteModal({
             <select
               className="w-full border rounded px-3 py-2"
               value={editData.bodega_id || ""}
-              onChange={(e) => setEditData({...editData, bodega_id: e.target.value})}
+              onChange={(e) => setEditData({ ...editData, bodega_id: e.target.value })}
             >
               <option value="">Sin asignar</option>
               {bodegas.filter(b => b.estado === "disponible" || b.id === editData.bodega_id).map(b => (
@@ -907,7 +959,7 @@ function EditClienteModal({
                 type="date"
                 className="w-full border rounded px-3 py-2"
                 value={editData.fecha_inicio || ""}
-                onChange={(e) => setEditData({...editData, fecha_inicio: e.target.value})}
+                onChange={(e) => setEditData({ ...editData, fecha_inicio: e.target.value })}
               />
             </div>
             <div>
@@ -917,7 +969,7 @@ function EditClienteModal({
                 min="1"
                 className="w-full border rounded px-3 py-2"
                 value={editData.duracion_meses || 1}
-                onChange={(e) => setEditData({...editData, duracion_meses: Number(e.target.value)})}
+                onChange={(e) => setEditData({ ...editData, duracion_meses: Number(e.target.value) })}
               />
             </div>
             <div>
@@ -926,7 +978,7 @@ function EditClienteModal({
                 type="number"
                 className="w-full border rounded px-3 py-2 bg-gray-50"
                 value={editData.pago_mensual || 0}
-                onChange={(e) => setEditData({...editData, pago_mensual: Number(e.target.value)})}
+                onChange={(e) => setEditData({ ...editData, pago_mensual: Number(e.target.value) })}
                 readOnly={!!bodegaSeleccionada && editData.bodega_id !== cliente.bodega_id}
               />
             </div>
@@ -937,7 +989,7 @@ function EditClienteModal({
             <textarea
               className="w-full border rounded px-3 py-2 h-20"
               value={editData.comentarios || ""}
-              onChange={(e) => setEditData({...editData, comentarios: e.target.value})}
+              onChange={(e) => setEditData({ ...editData, comentarios: e.target.value })}
               placeholder="Comentarios adicionales sobre el cliente..."
             />
           </div>
@@ -947,7 +999,7 @@ function EditClienteModal({
             <textarea
               className="w-full border rounded px-3 py-2 h-20"
               value={editData.descripcion || ""}
-              onChange={(e) => setEditData({...editData, descripcion: e.target.value})}
+              onChange={(e) => setEditData({ ...editData, descripcion: e.target.value })}
               placeholder="Descripción adicional..."
             />
           </div>
@@ -977,23 +1029,23 @@ function EditClienteModal({
 // ContratoModal
 
 // ✅ Versión corregida:
-function ContratoModal({ 
-  cliente, 
-  bodega, 
+function ContratoModal({
+  cliente,
+  bodega,
   bodegas,  // 👈 Agregar este parámetro
-  onClose 
-}: { 
-  cliente: Cliente; 
-  bodega?: Bodega; 
+  onClose
+}: {
+  cliente: Cliente;
+  bodega?: Bodega;
   bodegas: Bodega[];  // 👈 Agregar este tipo
-  onClose: () => void; 
+  onClose: () => void;
 }) {
   return (
-    <ContratoModalComplete 
-      cliente={cliente} 
+    <ContratoModalComplete
+      cliente={cliente}
       bodega={bodega}
       bodegas={bodegas}  // ✅ Ahora sí está disponible
-      onClose={onClose} 
+      onClose={onClose}
     />
   );
 }
@@ -1002,7 +1054,7 @@ function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: ()
   const [tipoRecordatorio, setTipoRecordatorio] = useState<"pago" | "renovacion">("pago");
   const [metodo, setMetodo] = useState<"whatsapp" | "email">("whatsapp");
 
-  const diasRestantes = cliente.fecha_expiracion ? 
+  const diasRestantes = cliente.fecha_expiracion ?
     dayjs(cliente.fecha_expiracion).diff(dayjs(), "day") : null;
 
   const mensajePago = `Hola ${cliente.nombre},\n\nTe recordamos que tu pago mensual de la bodega ${cliente.bodega_id} vence en 5 días.\n\nMonto: ${cliente.pago_mensual?.toLocaleString()} MXN\n\n¡Gracias por tu preferencia!\nVBODEGAS - PROYECTO Y ESPACIOS RADA`;
@@ -1011,7 +1063,7 @@ function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: ()
 
   const enviarRecordatorio = () => {
     const mensaje = tipoRecordatorio === "pago" ? mensajePago : mensajeRenovacion;
-    
+
     if (metodo === "whatsapp" && cliente.telefono) {
       abrirWhatsApp(cliente.telefono, mensaje);
     } else if (metodo === "email") {
@@ -1058,11 +1110,10 @@ function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: ()
             <div className="flex gap-3">
               <button
                 onClick={() => setMetodo("whatsapp")}
-                className={`flex-1 px-4 py-3 rounded border-2 ${
-                  metodo === "whatsapp" 
-                    ? "border-green-600 bg-green-50 text-green-700" 
+                className={`flex-1 px-4 py-3 rounded border-2 ${metodo === "whatsapp"
+                    ? "border-green-600 bg-green-50 text-green-700"
                     : "border-gray-300"
-                }`}
+                  }`}
                 disabled={!cliente.telefono}
               >
                 📱 WhatsApp
@@ -1070,11 +1121,10 @@ function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: ()
               </button>
               <button
                 onClick={() => setMetodo("email")}
-                className={`flex-1 px-4 py-3 rounded border-2 ${
-                  metodo === "email" 
-                    ? "border-blue-600 bg-blue-50 text-blue-700" 
+                className={`flex-1 px-4 py-3 rounded border-2 ${metodo === "email"
+                    ? "border-blue-600 bg-blue-50 text-blue-700"
                     : "border-gray-300"
-                }`}
+                  }`}
               >
                 📧 Email
               </button>
@@ -1106,17 +1156,17 @@ function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: ()
   );
 }
 
-function ImportCSVModal({ 
-  isOpen, 
-  onClose, 
-  csvFile, 
-  csvPreview, 
-  importing, 
-  importResult, 
-  onFileSelect, 
+function ImportCSVModal({
+  isOpen,
+  onClose,
+  csvFile,
+  csvPreview,
+  importing,
+  importResult,
+  onFileSelect,
   onProcess,
-  error 
-}: { 
+  error
+}: {
   isOpen: boolean;
   onClose: () => void;
   csvFile: File | null;
@@ -1183,7 +1233,7 @@ function ImportCSVModal({
                   <h4 className="font-medium text-gray-900">{csvFile.name}</h4>
                   <p className="text-sm text-gray-600">{(csvFile.size / 1024).toFixed(2)} KB</p>
                 </div>
-                <button 
+                <button
                   onClick={() => { onFileSelect({ target: { files: null } } as any); }}
                   className="text-red-600 hover:text-red-800"
                 >
@@ -1273,20 +1323,20 @@ function ImportCSVModal({
   );
 }
 
-function ClienteDetailModal({ 
-  cliente, 
+function ClienteDetailModal({
+  cliente,
   bodegas,
   onClose,
   onUpdate
-}: { 
-  cliente: Cliente; 
+}: {
+  cliente: Cliente;
   bodegas: Bodega[];
   onClose: () => void;
   onUpdate: (cliente: Cliente) => void;
 }) {
   const [activeTab, setActiveTab] = useState<'general' | 'contrato' | 'pagos' | 'documentos'>('general');
   const [editModalOpen, setEditModalOpen] = useState(false);
-  
+
   const [mesesPagados, setMesesPagados] = useState<boolean[]>([]);
   const [guardandoPagos, setGuardandoPagos] = useState(false);
 
@@ -1296,18 +1346,18 @@ function ClienteDetailModal({
   const vencido = cliente.vencido_hoy || 0;
   const pagoMensual = cliente.pago_mensual || 0;
   const duracionMeses = cliente.duracion_meses || 12;
-  
+
   const porcentajePagado = totalContrato > 0 ? (pagado / totalContrato) * 100 : 0;
   const porcentajeVencido = totalContrato > 0 ? (vencido / totalContrato) * 100 : 0;
   const porcentajePorVencer = totalContrato > 0 ? (porVencer / totalContrato) * 100 : 0;
 
-  const diasTranscurridos = cliente.fecha_inicio && cliente.fecha_expiracion ? 
+  const diasTranscurridos = cliente.fecha_inicio && cliente.fecha_expiracion ?
     dayjs().diff(dayjs(cliente.fecha_inicio), 'day') : 0;
   const diasTotales = cliente.fecha_inicio && cliente.fecha_expiracion ?
     dayjs(cliente.fecha_expiracion).diff(dayjs(cliente.fecha_inicio), 'day') : 0;
   const porcentajeTiempo = diasTotales > 0 ? (diasTranscurridos / diasTotales) * 100 : 0;
 
-  const diasRestantes = cliente.fecha_expiracion ? 
+  const diasRestantes = cliente.fecha_expiracion ?
     dayjs(cliente.fecha_expiracion).diff(dayjs(), 'day') : null;
 
   useEffect(() => {
@@ -1336,13 +1386,13 @@ function ClienteDetailModal({
       const mesesPagadosCount = mesesPagados.filter(p => p).length;
       const nuevosAbonos = mesesPagadosCount * pagoMensual;
       const nuevoSaldo = totalContrato - nuevosAbonos;
-      
-      const vencidoHoy = (diasRestantes && diasRestantes < 0 && nuevoSaldo > 0) 
-        ? nuevoSaldo 
+
+      const vencidoHoy = (diasRestantes && diasRestantes < 0 && nuevoSaldo > 0)
+        ? nuevoSaldo
         : 0;
-  
+
       await updateClientePagos(cliente.id, nuevosAbonos, nuevoSaldo, vencidoHoy);
-  
+
       alert('✓ Pagos actualizados correctamente');
       window.location.reload();
     } catch (error: any) {
@@ -1359,7 +1409,7 @@ function ClienteDetailModal({
   const porcentajePagadoActualizado = totalContrato > 0 ? (abonosActualizados / totalContrato) * 100 : 0;
 
   const getStatusBadgeColor = (status: string) => {
-    switch(status) {
+    switch (status) {
       case "propuesta": return "bg-blue-100 text-blue-800";
       case "aceptado": return "bg-green-100 text-green-800";
       case "con_contrato": return "bg-purple-100 text-purple-800";
@@ -1368,7 +1418,7 @@ function ClienteDetailModal({
   };
 
   const getStatusLabel = (status: string) => {
-    switch(status) {
+    switch (status) {
       case "propuesta": return "Propuesta";
       case "aceptado": return "Aceptado";
       case "con_contrato": return "Con Contrato";
@@ -1397,7 +1447,7 @@ function ClienteDetailModal({
                 </span>
               </div>
             </div>
-            <button 
+            <button
               onClick={onClose}
               className="text-white/80 hover:text-white text-3xl font-light"
             >
@@ -1415,11 +1465,10 @@ function ClienteDetailModal({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-lg transition-all ${
-                  activeTab === tab.id
+                className={`px-4 py-2 rounded-lg transition-all ${activeTab === tab.id
                     ? 'bg-white text-blue-600 font-semibold'
                     : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
+                  }`}
               >
                 <span className="mr-2">{tab.icon}</span>
                 {tab.label}
@@ -1442,9 +1491,9 @@ function ClienteDetailModal({
                     <InfoRow label="Email" value={cliente.email} icon="📧" />
                     <InfoRow label="Teléfono" value={cliente.telefono || 'No registrado'} icon="📱" />
                     <InfoRow label="Régimen Fiscal" value={cliente.regimen_fiscal || 'No especificado'} icon="🏢" />
-                    <InfoRow 
-                      label="Fecha de Registro" 
-                      value={cliente.fecha_registro ? dayjs(cliente.fecha_registro).format('DD/MM/YYYY') : 'No disponible'} 
+                    <InfoRow
+                      label="Fecha de Registro"
+                      value={cliente.fecha_registro ? dayjs(cliente.fecha_registro).format('DD/MM/YYYY') : 'No disponible'}
                       icon="📅"
                     />
                   </div>
@@ -1505,12 +1554,12 @@ function ClienteDetailModal({
                   <span className="text-2xl">⏱️</span>
                   Línea de Tiempo del Contrato
                 </h3>
-                
+
                 {cliente.fecha_inicio && cliente.fecha_expiracion ? (
                   <>
                     <div className="relative mb-6">
                       <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all"
                           style={{ width: `${Math.min(porcentajeTiempo, 100)}%` }}
                         />
@@ -1530,7 +1579,7 @@ function ClienteDetailModal({
                         <div className="text-sm text-gray-600 mb-1">Fecha Inicio</div>
                         <div className="font-semibold">{dayjs(cliente.fecha_inicio).format('DD/MM/YYYY')}</div>
                       </div>
-                      
+
                       <div className="bg-white rounded-lg p-4 text-center border-2 border-green-500">
                         <div className="text-2xl mb-1">⏳</div>
                         <div className="text-sm text-gray-600 mb-1">Días Restantes</div>
@@ -1538,7 +1587,7 @@ function ClienteDetailModal({
                           {diasRestantes !== null ? diasRestantes : '-'}
                         </div>
                       </div>
-                      
+
                       <div className="bg-white rounded-lg p-4 text-center">
                         <div className="text-2xl mb-1">🏁</div>
                         <div className="text-sm text-gray-600 mb-1">Fecha Fin</div>
@@ -1560,12 +1609,12 @@ function ClienteDetailModal({
                   <div className="space-y-3">
                     <InfoRow label="Tipo de Contrato" value={cliente.tipo_contrato || 'Arrendamiento'} />
                     <InfoRow label="Duración" value={`${cliente.duracion_meses || 0} meses`} />
-                    <InfoRow 
-                      label="Fecha de Emisión" 
-                      value={cliente.fecha_emision ? dayjs(cliente.fecha_emision).format('DD/MM/YYYY') : 'No registrada'} 
+                    <InfoRow
+                      label="Fecha de Emisión"
+                      value={cliente.fecha_emision ? dayjs(cliente.fecha_emision).format('DD/MM/YYYY') : 'No registrada'}
                     />
-                    <InfoRow 
-                      label="Pago Mensual" 
+                    <InfoRow
+                      label="Pago Mensual"
                       value={`${(cliente.pago_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`}
                       highlight
                     />
@@ -1577,11 +1626,10 @@ function ClienteDetailModal({
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Factura Solicitada:</span>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        cliente.factura === 'Si' || cliente.factura === 'Sí' 
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${cliente.factura === 'Si' || cliente.factura === 'Sí'
                           ? 'bg-green-100 text-green-800'
                           : 'bg-gray-100 text-gray-800'
-                      }`}>
+                        }`}>
                         {cliente.factura || 'No especificado'}
                       </span>
                     </div>
@@ -1626,7 +1674,7 @@ function ClienteDetailModal({
                     <span className="text-sm font-bold text-indigo-600">{porcentajePagadoActualizado.toFixed(1)}%</span>
                   </div>
                   <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all"
                       style={{ width: `${porcentajePagadoActualizado}%` }}
                     />
@@ -1683,27 +1731,26 @@ function ClienteDetailModal({
                 <div className="space-y-4">
                   <div className="bg-blue-50 rounded-lg p-4 mb-4">
                     <p className="text-sm text-blue-800">
-                      <strong>📌 Instrucciones:</strong> Haz clic en cada mes para marcarlo como pagado/no pagado. 
+                      <strong>📌 Instrucciones:</strong> Haz clic en cada mes para marcarlo como pagado/no pagado.
                       Los cambios se guardarán al hacer clic en "Guardar Cambios".
                     </p>
                   </div>
 
                   <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {Array.from({ length: duracionMeses }).map((_, index) => {
-                      const fechaMes = cliente.fecha_inicio 
+                      const fechaMes = cliente.fecha_inicio
                         ? dayjs(cliente.fecha_inicio).add(index, 'month')
                         : null;
                       const isPagado = mesesPagados[index];
-                      
+
                       return (
                         <button
                           key={index}
                           onClick={() => toggleMesPagado(index)}
-                          className={`p-4 rounded-xl border-2 transition-all hover:scale-105 ${
-                            isPagado
+                          className={`p-4 rounded-xl border-2 transition-all hover:scale-105 ${isPagado
                               ? 'bg-green-100 border-green-500 text-green-800'
                               : 'bg-gray-50 border-gray-300 text-gray-600 hover:border-blue-400'
-                          }`}
+                            }`}
                         >
                           <div className="text-2xl mb-1">
                             {isPagado ? '✅' : '⏳'}
@@ -1754,7 +1801,7 @@ function ClienteDetailModal({
                   <span className="text-2xl">📋</span>
                   Gestión de Documentos
                 </h3>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <DocumentCard
                     title="Contrato PDF"
@@ -1820,11 +1867,11 @@ function ClienteDetailModal({
   );
 }
 
-function InfoRow({ label, value, icon, highlight }: { 
-  label: string; 
-  value: string; 
-  icon?: string; 
-  highlight?: boolean 
+function InfoRow({ label, value, icon, highlight }: {
+  label: string;
+  value: string;
+  icon?: string;
+  highlight?: boolean
 }) {
   return (
     <div className={`flex items-start justify-between ${highlight ? 'bg-white p-2 rounded' : ''}`}>
@@ -1848,15 +1895,15 @@ function CircularProgress({ value, label, color, amount }: {
   const radius = 45;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (value / 100) * circumference;
-  
+
   const colors = {
     green: { stroke: '#10b981', bg: 'bg-green-100', text: 'text-green-700' },
     amber: { stroke: '#f59e0b', bg: 'bg-amber-100', text: 'text-amber-700' },
     red: { stroke: '#ef4444', bg: 'bg-red-100', text: 'text-red-700' },
   };
-  
+
   const theme = colors[color];
-  
+
   return (
     <div className="text-center">
       <div className="relative inline-block">
@@ -1907,7 +1954,7 @@ function MontoCard({ icon, label, amount, color, updated }: {
     amber: 'from-amber-50 to-amber-100 border-amber-200',
     red: 'from-red-50 to-red-100 border-red-200',
   };
-  
+
   return (
     <div className={`bg-gradient-to-br ${colors[color]} rounded-xl p-5 border relative`}>
       {updated && (
@@ -1935,7 +1982,7 @@ function DocumentCard({ title, icon, status, action }: {
     disponible: 'bg-green-100 text-green-800',
     pendiente: 'bg-amber-100 text-amber-800',
   };
-  
+
   return (
     <div className="bg-white rounded-lg p-4 border-2 border-gray-200 hover:border-blue-300 transition-colors">
       <div className="flex items-center justify-between mb-3">

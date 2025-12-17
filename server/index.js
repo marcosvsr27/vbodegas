@@ -119,7 +119,7 @@ app.use(cookieParser());
 // -------------------- TEST ROUTE --------------------
 app.get("/api/ping", (req, res) => {
   res.json({ message: "pong" });
-}); 
+});
 
 
 
@@ -157,7 +157,7 @@ app.post("/api/auth/email/register", async (req, res) => {
 
     const hash = bcrypt.hashSync(password, 10);
     const id = Date.now().toString();
-    await query.run("INSERT INTO clientes (id,nombre,email,hash,rol) VALUES (?,?,?,?,?)", 
+    await query.run("INSERT INTO clientes (id,nombre,email,hash,rol) VALUES (?,?,?,?,?)",
       [id, nombre || "", email, hash, "cliente"]);
 
     const token = createToken({ id, email, rol: "cliente" });
@@ -171,10 +171,10 @@ app.post("/api/auth/email/register", async (req, res) => {
 app.post("/api/auth/email/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     let user = await query.get("SELECT * FROM administradores WHERE email=?", [email]);
     let tabla = "administradores";
-    
+
     if (!user) {
       user = await query.get("SELECT * FROM clientes WHERE email=?", [email]);
       tabla = "clientes";
@@ -203,10 +203,10 @@ app.post("/api/auth/email/login", async (req, res) => {
 
     res.json({
       ok: true,
-      token:token,
-      usuario: { 
-        id: user.id, 
-        email: user.email, 
+      token: token,
+      usuario: {
+        id: user.id,
+        email: user.email,
         rol: user.rol || (tabla === "administradores" ? "admin" : "cliente"),
         nombre: user.nombre
       }
@@ -365,7 +365,7 @@ app.patch("/api/admin/admins/:id/permisos", authMiddleware, async (req, res) => 
     if (!["admin", "superadmin", "editor", "viewer"].includes(req.user.rol)) {
       return res.status(403).json({ error: "Solo admins" });
     }
-    
+
     const { permisos } = req.body;
     await query.run("UPDATE clientes SET permisos=? WHERE id=?", [permisos, req.params.id]);
     res.json({ ok: true });
@@ -380,19 +380,19 @@ app.post("/api/admin/clientes/:id/recordatorio", authMiddleware, async (req, res
     if (!["admin", "superadmin", "editor", "viewer"].includes(req.user.rol)) {
       return res.status(403).json({ error: "Solo admins" });
     }
-    
+
     const cliente = await query.get("SELECT * FROM clientes WHERE id=?", [req.params.id]);
     if (!cliente) return res.status(404).json({ error: "Cliente no encontrado" });
-    
+
     console.log(`Enviando recordatorio a ${cliente.email}`);
-    
+
     broadcast("log", {
       type: "recordatorio_enviado",
       clienteId: req.params.id,
       user: req.user?.email || "admin",
       timestamp: new Date().toISOString()
     });
-    
+
     res.json({ ok: true, mensaje: "Recordatorio enviado" });
   } catch (e) {
     console.error("Error enviando recordatorio:", e);
@@ -406,12 +406,12 @@ app.get("/api/admin/stats", async (_req, res) => {
     const disponiblesRow = await query.get("SELECT COUNT(*) as c FROM bodegas WHERE status='disponible'", []);
     const apartadasRow = await query.get("SELECT COUNT(*) as c FROM bodegas WHERE status='apartada'", []);
     const rentadasRow = await query.get("SELECT COUNT(*) as c FROM bodegas WHERE status='rentada'", []);
-    
-    res.json({ 
-      total: totalRow.c, 
-      disponibles: disponiblesRow.c, 
-      apartadas: apartadasRow.c, 
-      rentadas: rentadasRow.c 
+
+    res.json({
+      total: totalRow.c,
+      disponibles: disponiblesRow.c,
+      apartadas: apartadasRow.c,
+      rentadas: rentadasRow.c
     });
   } catch (e) {
     console.error("Error en stats:", e);
@@ -440,7 +440,7 @@ app.post("/api/admin/admins", authMiddleware, async (req, res) => {
     }
 
     const { nombre, email, password, telefono, rol, permisos } = req.body;
-    
+
     if (!email || !password) {
       return res.status(400).json({ error: "Email y contraseña son obligatorios" });
     }
@@ -452,7 +452,7 @@ app.post("/api/admin/admins", authMiddleware, async (req, res) => {
 
     const hash = bcrypt.hashSync(password, 10);
     const id = Date.now().toString();
-    
+
     await query.run("INSERT INTO administradores (id,nombre,email,telefono,hash,rol,permisos) VALUES (?,?,?,?,?,?,?)",
       [id, nombre || "", email, telefono || "", hash, rol || "editor", permisos || "completo"]);
 
@@ -470,7 +470,7 @@ app.patch("/api/admin/admins/:id", authMiddleware, async (req, res) => {
     }
 
     const { nombre, email, telefono, password, rol, permisos } = req.body;
-    
+
     if (password) {
       const hash = bcrypt.hashSync(password, 10);
       await query.run("UPDATE administradores SET nombre=?, email=?, telefono=?, hash=?, rol=?, permisos=? WHERE id=?",
@@ -479,7 +479,7 @@ app.patch("/api/admin/admins/:id", authMiddleware, async (req, res) => {
       await query.run("UPDATE administradores SET nombre=?, email=?, telefono=?, rol=?, permisos=? WHERE id=?",
         [nombre, email, telefono, rol, permisos, req.params.id]);
     }
-    
+
     res.json({ ok: true });
   } catch (e) {
     console.error("Error actualizando admin:", e);
@@ -549,18 +549,18 @@ app.post("/api/admin/clientes", authMiddleware, async (req, res) => {
     if (!["admin", "superadmin", "editor", "viewer"].includes(req.user.rol)) {
       return res.status(403).json({ error: "Solo admins" });
     }
-    
+
     const { nombre, apellidos, email, telefono, regimen_fiscal, bodega_id, fecha_inicio, duracion_meses, pago_mensual } = req.body;
-    
+
     if (!nombre || !email) {
       return res.status(400).json({ error: "Nombre y email son obligatorios" });
     }
-    
+
     const exists = await query.get("SELECT * FROM clientes WHERE email=?", [email]);
     if (exists) {
       return res.status(400).json({ error: "Email ya registrado" });
     }
-    
+
     let fecha_expiracion = null;
     if (fecha_inicio && duracion_meses) {
       const inicio = new Date(fecha_inicio);
@@ -568,7 +568,7 @@ app.post("/api/admin/clientes", authMiddleware, async (req, res) => {
       expiracion.setMonth(expiracion.getMonth() + parseInt(duracion_meses));
       fecha_expiracion = expiracion.toISOString().split('T')[0];
     }
-    
+
     let modulo = "", planta = "", medidas = "", metros = 0;
     if (bodega_id) {
       const bodega = await query.get("SELECT * FROM bodegas WHERE id=?", [bodega_id]);
@@ -580,7 +580,7 @@ app.post("/api/admin/clientes", authMiddleware, async (req, res) => {
         await query.run("UPDATE bodegas SET status='apartada' WHERE id=?", [bodega_id]);
       }
     }
-    
+
     const id = Date.now().toString();
     await query.run(`
       INSERT INTO clientes (
@@ -590,11 +590,11 @@ app.post("/api/admin/clientes", authMiddleware, async (req, res) => {
       ) 
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `, [
-      id, nombre, apellidos || "", email, telefono || "", regimen_fiscal || "", 
-      bodega_id || null, modulo, planta, medidas, metros, fecha_inicio || null, 
+      id, nombre, apellidos || "", email, telefono || "", regimen_fiscal || "",
+      bodega_id || null, modulo, planta, medidas, metros, fecha_inicio || null,
       duracion_meses || 1, fecha_expiracion, pago_mensual || 0, "activo"
     ]);
-    
+
     res.json({ ok: true });
   } catch (e) {
     console.error("Error creando cliente:", e);
@@ -607,11 +607,11 @@ app.patch("/api/admin/clientes/:id", authMiddleware, async (req, res) => {
     if (!["admin", "superadmin", "editor", "viewer"].includes(req.user.rol)) {
       return res.status(403).json({ error: "Solo admins" });
     }
-    
-    const { nombre, apellidos, email, telefono, regimen_fiscal, bodega_id, fecha_inicio, duracion_meses, pago_mensual, status, comentarios, descripcion } = req.body;
-    
 
-    
+    const { nombre, apellidos, email, telefono, regimen_fiscal, bodega_id, fecha_inicio, duracion_meses, pago_mensual, status, comentarios, descripcion } = req.body;
+
+
+
     let fecha_expiracion = null;
     if (fecha_inicio && duracion_meses) {
       const inicio = new Date(fecha_inicio);
@@ -619,7 +619,7 @@ app.patch("/api/admin/clientes/:id", authMiddleware, async (req, res) => {
       expiracion.setMonth(expiracion.getMonth() + parseInt(duracion_meses));
       fecha_expiracion = expiracion.toISOString().split('T')[0];
     }
-    
+
     await query.run(`
       UPDATE clientes 
       SET nombre=?, apellidos=?, email=?, telefono=?, regimen_fiscal=?, 
@@ -627,12 +627,12 @@ app.patch("/api/admin/clientes/:id", authMiddleware, async (req, res) => {
           status=?, comentarios=?, descripcion=?
       WHERE id=?
     `, [
-      nombre, apellidos || "", email, telefono || "", regimen_fiscal || "", 
-      bodega_id || null, fecha_inicio || null, duracion_meses || 1, 
-      fecha_expiracion, pago_mensual || 0, status || "propuesta", 
+      nombre, apellidos || "", email, telefono || "", regimen_fiscal || "",
+      bodega_id || null, fecha_inicio || null, duracion_meses || 1,
+      fecha_expiracion, pago_mensual || 0, status || "propuesta",
       comentarios || "", descripcion || "", req.params.id
     ]);
-    
+
     res.json({ ok: true });
   } catch (e) {
     console.error("Error actualizando cliente:", e);
@@ -652,7 +652,7 @@ app.patch("/api/admin/clientes/:id/pagos", authMiddleware, async (req, res) => {
       SET abonos=?, saldo=?, vencido_hoy=?
       WHERE id=?
     `, [abonos || 0, saldo || 0, vencido_hoy || 0, req.params.id]);
-    
+
     // Broadcast del cambio
     broadcast("log", {
       type: "pagos_actualizados",
@@ -661,7 +661,7 @@ app.patch("/api/admin/clientes/:id/pagos", authMiddleware, async (req, res) => {
       timestamp: new Date().toISOString(),
       cambios: { abonos, saldo, vencido_hoy }
     });
-    
+
     res.json({ ok: true, mensaje: "Pagos actualizados correctamente" });
   } catch (e) {
     console.error("Error actualizando pagos:", e);
@@ -674,12 +674,12 @@ app.delete("/api/admin/clientes/:id", authMiddleware, async (req, res) => {
     if (!["admin", "superadmin", "editor", "viewer"].includes(req.user.rol)) {
       return res.status(403).json({ error: "Solo admins" });
     }
-    
+
     const cliente = await query.get("SELECT bodega_id FROM clientes WHERE id=?", [req.params.id]);
     if (cliente?.bodega_id) {
       await query.run("UPDATE bodegas SET status='disponible' WHERE id=?", [cliente.bodega_id]);
     }
-    
+
     await query.run("DELETE FROM clientes WHERE id=?", [req.params.id]);
     res.json({ ok: true });
   } catch (e) {
@@ -716,10 +716,10 @@ app.get("/api/admin/stats-real", authMiddleware, async (req, res) => {
     const ocupacion = totalBodegas > 0 ? ((ocupadas / totalBodegas) * 100).toFixed(1) : "0.0";
 
     // Ingresos mensuales con manejo robusto de NULL
-    const ingresosQuery = IS_PRODUCTION 
+    const ingresosQuery = IS_PRODUCTION
       ? "SELECT COALESCE(SUM(pago_mensual),0) as total FROM clientes WHERE estado_contrato='activo'"
       : "SELECT IFNULL(SUM(pago_mensual), 0) as total FROM clientes WHERE estado_contrato='activo'";
-    
+
     const ingresosRow = await query.get(ingresosQuery, []);
     const ingresos = toNumber(ingresosRow?.total);
 
@@ -727,7 +727,7 @@ app.get("/api/admin/stats-real", authMiddleware, async (req, res) => {
     const tiempoQuery = IS_PRODUCTION
       ? "SELECT COALESCE(AVG(duracion_meses),0) as promedio FROM clientes"
       : "SELECT IFNULL(AVG(duracion_meses), 0) as promedio FROM clientes";
-    
+
     const tiempoRow = await query.get(tiempoQuery, []);
     const tiempoPromedio = toNumber(tiempoRow?.promedio);
 
@@ -825,12 +825,12 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
 
     const clienteId = req.params.id;
     const { secciones } = req.body;
-    
+
     console.log("\n========================================");
     console.log("🔍 INICIANDO GENERACIÓN DE CONTRATO");
     console.log("Cliente ID:", clienteId);
     console.log("========================================\n");
-    
+
     // Obtener datos del cliente con TODOS los campos
     const cliente = await query.get(`
       SELECT 
@@ -845,7 +845,7 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
       LEFT JOIN bodegas b ON c.bodega_id = b.id
       WHERE c.id=?
     `, [clienteId]);
-    
+
     console.log("\n📊 DATOS RAW DEL CLIENTE:");
     console.log("----------------------------");
     console.log("Nombre:", cliente?.nombre);
@@ -872,7 +872,7 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     console.log("Bienes Almacenar:", cliente?.bienes_almacenar);
     console.log("Autorizados RAW:", cliente?.autorizados);
     console.log("----------------------------\n");
-    
+
     if (!cliente) {
       console.error("❌ Cliente no encontrado");
       return res.status(404).json({ error: "Cliente no encontrado" });
@@ -903,10 +903,10 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     let autorizados = [];
     if (cliente.autorizados) {
       try {
-        autorizados = typeof cliente.autorizados === 'string' 
-          ? JSON.parse(cliente.autorizados) 
+        autorizados = typeof cliente.autorizados === 'string'
+          ? JSON.parse(cliente.autorizados)
           : cliente.autorizados;
-        
+
         if (!Array.isArray(autorizados)) {
           autorizados = [];
         }
@@ -955,49 +955,49 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     // ===== PREPARAR TODOS LOS DATOS =====
     console.log("\n🔧 PREPARANDO DATOS PARA LLENAR:");
     console.log("=====================================");
-    
+
     const nombreCompleto = `${cliente.nombre || ''} ${cliente.apellidos || ''}`.trim();
     console.log("📝 nombreCompleto:", nombreCompleto);
-    
+
     const bodegaId = cliente.bodega_number || cliente.bodega_id || '';
     console.log("🏢 bodegaId:", bodegaId);
-    
+
     const moduloNum = (bodegaId.split('-')[0] || '');
     console.log("📦 moduloNum:", moduloNum);
-    
+
     const metros = String(cliente.bodega_area_m2 || cliente.metros || '');
     console.log("📏 metros:", metros);
-    
+
     const telefono = cliente.telefono || '';
     console.log("📱 telefono:", telefono);
-    
+
     const correo = cliente.email || '';
     console.log("📧 correo:", correo);
-    
+
     const fechaInicio = cliente.fecha_inicio || '';
     console.log("📅 fechaInicio:", fechaInicio);
-    
+
     const fechaFin = cliente.fecha_expiracion || '';
     console.log("📅 fechaFin:", fechaFin);
-    
+
     const fechaHoy = new Date().toISOString().split('T')[0];
     console.log("📅 fechaHoy:", fechaHoy);
-    
+
     const precioMensual = parseFloat(cliente.pago_mensual || cliente.bodega_price || 0);
     console.log("💰 precioMensual:", precioMensual);
-    
+
     const deposito = parseFloat(cliente.deposito || precioMensual);
     console.log("💰 deposito:", deposito);
-    
+
     const precioFormateado = formatearDineroContrato(precioMensual);
     console.log("💵 precioFormateado:", precioFormateado);
-    
+
     const depositoFormateado = formatearDineroContrato(deposito);
     console.log("💵 depositoFormateado:", depositoFormateado);
-    
+
     const duracionTexto = `${cliente.duracion_meses || 12} meses`;
     console.log("⏱️ duracionTexto:", duracionTexto);
-    
+
     console.log("=====================================\n");
 
     // ===== LLENAR CAMPOS DEL PDF =====
@@ -1044,7 +1044,7 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     console.log("\n📄 PAGE 8 - ANEXO 2 (AUTORIZADOS):");
     setFieldSafe('NOMBRE#8', nombreCompleto);
     setFieldSafe('ID-BODEGA#2', bodegaId);
-    
+
     // Autorizado 1
     if (autorizados[0] && autorizados[0].nombre) {
       console.log("  👤 Autorizado 1:");
@@ -1052,7 +1052,7 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
       setFieldSafe('NOMBRE DEL AUTORIZADO1', autorizados[0].nombre);
       setFieldSafe('TIPO DE AUTORIZACION temporal permanente1', autorizados[0].tipo || 'temporal');
     }
-    
+
     // Autorizado 2
     if (autorizados[1] && autorizados[1].nombre) {
       console.log("  👤 Autorizado 2:");
@@ -1060,7 +1060,7 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
       setFieldSafe('NOMBRE DEL AUTORIZADO2', autorizados[1].nombre);
       setFieldSafe('TIPO DE AUTORIZACION temporal permanente2', autorizados[1].tipo || 'temporal');
     }
-    
+
     // Autorizado 3
     if (autorizados[2] && autorizados[2].nombre) {
       console.log("  👤 Autorizado 3:");
@@ -1068,7 +1068,7 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
       setFieldSafe('NOMBRE DEL AUTORIZADO3', autorizados[2].nombre);
       setFieldSafe('TIPO DE AUTORIZACION temporal permanente3', autorizados[2].tipo || 'temporal');
     }
-    
+
     setFieldSafe('NOMBRE#7', nombreCompleto);
 
     console.log("\n📄 PAGE 9 - ANEXO 3:");
@@ -1102,9 +1102,9 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     let pdfFinal = pdfDoc;
     if (secciones && Array.isArray(secciones) && secciones.length > 0) {
       console.log("📋 Filtrando secciones:", secciones.join(', '));
-      
+
       const pdfFiltrado = await PDFDocument.create();
-      
+
       const paginasPorSeccion = {
         'contrato': [0, 1, 2, 3, 4, 5, 6],
         'anexo1': [7],
@@ -1114,26 +1114,26 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
         'anexo5': [11, 12, 13],
         'anexo6': [14]
       };
-      
+
       const paginasAIncluir = new Set();
       secciones.forEach(seccion => {
         const paginas = paginasPorSeccion[seccion] || [];
         paginas.forEach(p => paginasAIncluir.add(p));
       });
-      
+
       const paginasOrdenadas = Array.from(paginasAIncluir).sort((a, b) => a - b);
       console.log("📄 Páginas a incluir:", paginasOrdenadas);
-      
+
       const copiedPages = await pdfFiltrado.copyPages(pdfDoc, paginasOrdenadas);
       copiedPages.forEach(page => pdfFiltrado.addPage(page));
-      
+
       pdfFinal = pdfFiltrado;
     }
 
     // Generar PDF
     console.log("💾 Generando archivo PDF...");
     const pdfBytes = await pdfFinal.save();
-    
+
     // Nombre del archivo
     const seccionTexto = secciones && secciones.length > 0 ? `_${secciones.join('_')}` : '_completo';
     const fileName = `Contrato_${cliente.nombre.replace(/\s+/g, '_')}${seccionTexto}_${Date.now()}.pdf`;
@@ -1177,8 +1177,8 @@ app.patch("/api/admin/clientes/:id/actualizar-datos-contrato", authMiddleware, a
       return res.status(403).json({ error: "Permiso denegado" });
     }
 
-    const { 
-      nacionalidad, actividad, direccion, rfc, curp, 
+    const {
+      nacionalidad, actividad, direccion, rfc, curp,
       tipo_identificacion, numero_identificacion, bienes_almacenar,
       deposito, autorizados
     } = req.body;
@@ -1267,8 +1267,8 @@ app.post("/api/admin/clientes/:id/subir-contrato", authMiddleware, async (req, r
       timestamp: new Date().toISOString()
     });
 
-    res.json({ 
-      ok: true, 
+    res.json({
+      ok: true,
       mensaje: "Contrato escaneado subido exitosamente"
     });
   } catch (e) {
@@ -1368,14 +1368,14 @@ app.post("/api/admin/exportar-excel", authMiddleware, async (req, res) => {
 app.post("/api/setup-superadmin", async (req, res) => {
   try {
     const { secret } = req.body;
-    
+
     if (secret !== "inicializar-vbodegas-2024") {
       return res.status(403).json({ error: "Acceso denegado" });
     }
 
     // ELIMINAR TODOS los admins con ese email
     await query.run("DELETE FROM administradores WHERE email=?", ["admin@vbodegas.com"]);
-    
+
     // Crear uno nuevo limpio con ID fijo
     const hashed = bcrypt.hashSync("admin123", 10);
     await query.run(`
@@ -1408,7 +1408,7 @@ app.get("/api/admin/contratos/calibrar", authMiddleware, async (req, res) => {
     }
 
     await generarGridCalibracion(templatePath, outputPath, 50); // Grid cada 50px
-    
+
     res.download(outputPath, "Calibracion.pdf");
   } catch (e) {
     console.error("Error generando grid:", e);
@@ -1426,20 +1426,23 @@ app.post("/api/admin/clientes/importar-csv", authMiddleware, async (req, res) =>
       return res.status(403).json({ error: "Permiso denegado" });
     }
 
-    const { csvData } = req.body;
-    
-    if (!csvData) {
-      return res.status(400).json({ error: "No se proporcionó datos CSV" });
-    }
+    let { csvData, jsonData } = req.body;
+    let records = [];
 
-    // Parsear CSV
-    const records = parse(csvData, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-      bom: true,
-      relax_quotes: true
-    });
+    if (jsonData && Array.isArray(jsonData)) {
+      records = jsonData;
+    } else if (csvData) {
+      // Parsear CSV (compatibilidad)
+      records = parse(csvData, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        bom: true,
+        relax_quotes: true
+      });
+    } else {
+      return res.status(400).json({ error: "No se proporcionó data (CSV o JSON)" });
+    }
 
     const resultado = {
       exitosos: 0,
@@ -1452,21 +1455,29 @@ app.post("/api/admin/clientes/importar-csv", authMiddleware, async (req, res) =>
     // Procesar cada registro
     for (const record of records) {
       try {
-        // Normalizar nombres de columnas (el CSV puede tener nombres variados)
+        // Normalizar nombres de columnas (manejando variaciones comunes)
         const propiedad = record.Propiedad || record.propiedad || "";
-        const cliente = record.Cliente || record.cliente || "";
-        const correo = (record.Correo || record.correo || record.email || "").trim().toLowerCase();
-        const telefono = record.Telefono || record.telefono || "";
-        
+        // El cliente puede venir como "Cliente" o "Inquilino" (en historicobodegas.xlsx)
+        const rawCliente = record.Cliente || record.cliente || record.Inquilino || record.inquilino || "";
+        const rawCorreo = record.Correo || record.correo || record.email || record["E-mail"] || "";
+
+        const correo = String(rawCorreo).trim().toLowerCase();
+
+        // El teléfono puede ser Tel.Principal
+        const telefono = record.Telefono || record.telefono || record["Tel.Principal"] || "";
+
         // Validaciones básicas
-        if (!cliente || !correo) {
-          resultado.errores++;
-          resultado.detalles.push(`⚠️ Fila sin nombre o email: ${JSON.stringify(record)}`);
+        if (!rawCliente || !correo) {
+          // Si no es un registro vacío (evitar contar filas vacías)
+          if (Object.keys(record).length > 2) {
+            resultado.errores++;
+            resultado.detalles.push(`⚠️ Fila sin nombre o email: ${JSON.stringify(record)}`);
+          }
           continue;
         }
 
         // Separar nombre y apellidos
-        const nombreCompleto = cliente.split(' ');
+        const nombreCompleto = rawCliente.split(' ');
         const nombre = nombreCompleto[0] || "";
         const apellidos = nombreCompleto.slice(1).join(' ') || "";
 
@@ -1497,26 +1508,26 @@ app.post("/api/admin/clientes/importar-csv", authMiddleware, async (req, res) =>
         // Buscar la bodega en la base de datos
         let bodegaId = null;
         let modulo = "";
-        let planta = "";
+        let pb = "";
         let medidas = "";
         let metros = 0;
 
         if (propiedad) {
           const bodega = await query.get(
-            "SELECT * FROM bodegas WHERE id=? OR number=?", 
+            "SELECT * FROM bodegas WHERE id=? OR number=?",
             [propiedad.trim(), propiedad.trim()]
           );
-          
+
           if (bodega) {
             bodegaId = bodega.id;
             modulo = (bodega.number || "").split("-")[0] || "";
-            planta = bodega.planta || "";
+            pb = bodega.planta || "";
             medidas = bodega.medidas || "";
             metros = bodega.area_m2 || 0;
-            
+
             // Actualizar estado de bodega a apartada si no está rentada
             if (bodega.status !== "rentada") {
-              await query.run("UPDATE bodegas SET status='apartada' WHERE id=?", [bodega.id]);
+              await query.run("UPDATE bodegas SET status='rentada' WHERE id=?", [bodega.id]);
             }
           }
         }
@@ -1525,31 +1536,59 @@ app.post("/api/admin/clientes/importar-csv", authMiddleware, async (req, res) =>
         const existente = await query.get("SELECT * FROM clientes WHERE email=?", [correo]);
 
         if (existente) {
-          // Actualizar cliente existente
-          await query.run(`
-            UPDATE clientes SET
-              nombre=?, apellidos=?, telefono=?, bodega_id=?, modulo=?, planta=?,
-              medidas=?, metros=?, fecha_inicio=?, duracion_meses=?, fecha_expiracion=?,
-              pago_mensual=?, tipo_contrato=?, vencido_hoy=?, saldo=?, abonos=?,
-              cargos=?, fecha_emision=?, descripcion=?, factura=?, comentarios=?
-            WHERE email=?
-          `, [
-            nombre, apellidos, telefono, bodegaId, modulo, planta, medidas, metros,
-            fechaInicio || null, duracionMeses, fechaFin || null, pagoMensual,
-            record["Tipo Contrato"] || "Arrendamiento",
-            vencidoHoy, saldo, abonos, cargos, fechaEmision || null,
-            record.Descripcion || record.descripcion || "",
-            record.Factura || record.factura || "",
-            record["Comentarios:"] || record.Comentarios || record.comentarios || "",
-            correo
-          ]);
-          
-          resultado.actualizados++;
-          resultado.detalles.push(`🔄 Actualizado: ${nombre} ${apellidos} (${correo})`);
+          // --- LÓGICA DE UPSERT PARCIAL (Smart Update) ---
+          // Solo actualizamos campos si vienen en el Excel y NO están vacíos/nulos
+
+          const updates = [];
+          const values = [];
+
+          // Helper para agregar update
+          const addUpdate = (col, val) => {
+            if (val !== undefined && val !== null && val !== "") {
+              updates.push(`${col}=?`);
+              values.push(val);
+            }
+          };
+
+          addUpdate("nombre", nombre);
+          addUpdate("apellidos", apellidos);
+          addUpdate("telefono", telefono);
+          addUpdate("bodega_id", bodegaId);
+          addUpdate("modulo", modulo);
+          addUpdate("planta", pb);
+          addUpdate("medidas", medidas);
+          addUpdate("metros", metros);
+
+          if (fechaInicio) addUpdate("fecha_inicio", fechaInicio);
+          if (duracionMeses) addUpdate("duracion_meses", duracionMeses);
+          if (fechaFin) addUpdate("fecha_expiracion", fechaFin);
+          if (pagoMensual) addUpdate("pago_mensual", pagoMensual);
+
+          addUpdate("tipo_contrato", record["Tipo Contrato"] || record.tipo_contrato);
+          addUpdate("vencido_hoy", vencidoHoy);
+          addUpdate("saldo", saldo);
+          addUpdate("abonos", abonos);
+          addUpdate("cargos", cargos);
+
+          if (fechaEmision) addUpdate("fecha_emision", fechaEmision);
+
+          addUpdate("descripcion", record.Descripcion || record.descripcion);
+          addUpdate("factura", record.Factura || record.factura);
+          addUpdate("comentarios", record["Comentarios:"] || record.Comentarios || record.comentarios);
+
+          if (updates.length > 0) {
+            values.push(correo); // Para el WHERE
+            await query.run(`UPDATE clientes SET ${updates.join(', ')} WHERE email=?`, values);
+            resultado.actualizados++;
+            resultado.detalles.push(`🔄 Actualizado (Parcial): ${nombre} ${apellidos} (${correo})`);
+          } else {
+            // No hubo cambios
+          }
+
         } else {
           // Crear nuevo cliente
           const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-          
+
           await query.run(`
             INSERT INTO clientes (
               id, nombre, apellidos, email, telefono, bodega_id, modulo, planta,
@@ -1558,7 +1597,7 @@ app.post("/api/admin/clientes/importar-csv", authMiddleware, async (req, res) =>
               fecha_emision, descripcion, factura, comentarios, estado_contrato
             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
           `, [
-            id, nombre, apellidos, correo, telefono, bodegaId, modulo, planta,
+            id, nombre, apellidos, correo, telefono, bodegaId, modulo, pb,
             medidas, metros, fechaInicio || null, duracionMeses, fechaFin || null,
             pagoMensual, record["Tipo Contrato"] || "Arrendamiento",
             vencidoHoy, saldo, abonos, cargos, fechaEmision || null,
@@ -1567,7 +1606,7 @@ app.post("/api/admin/clientes/importar-csv", authMiddleware, async (req, res) =>
             record["Comentarios:"] || record.Comentarios || record.comentarios || "",
             "activo"
           ]);
-          
+
           resultado.exitosos++;
           resultado.detalles.push(`✅ Creado: ${nombre} ${apellidos} (${correo})`);
         }
@@ -1587,17 +1626,17 @@ app.post("/api/admin/clientes/importar-csv", authMiddleware, async (req, res) =>
       timestamp: new Date().toISOString()
     });
 
-    res.json({ 
-      ok: true, 
+    res.json({
+      ok: true,
       resultado,
       mensaje: `Importación completada: ${resultado.exitosos} creados, ${resultado.actualizados} actualizados, ${resultado.errores} errores`
     });
 
   } catch (e) {
     console.error("Error en importación CSV:", e);
-    res.status(500).json({ 
-      error: "Error procesando CSV: " + e.message,
-      detalles: e.stack 
+    res.status(500).json({
+      error: "Error procesando archivo: " + e.message,
+      detalles: e.stack
     });
   }
 });
