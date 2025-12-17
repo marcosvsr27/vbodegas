@@ -495,7 +495,7 @@ export default function Clientes() {
                           <div className="w-24 bg-gray-200 rounded-full h-2 mt-1">
                             <div
                               className={`h-2 rounded-full ${estado === "vencido" ? "bg-red-500" :
-                                  estado === "proximo_vencer" ? "bg-amber-500" : "bg-green-500"
+                                estado === "proximo_vencer" ? "bg-amber-500" : "bg-green-500"
                                 }`}
                               style={{ width: `${porcentajeTiempo}%` }}
                             />
@@ -510,9 +510,9 @@ export default function Clientes() {
                     </td>
                     <td className="p-2">
                       <span className={`px-2 py-1 rounded text-xs ${estado === "vencido" ? "bg-red-100 text-red-800" :
-                          estado === "proximo_vencer" ? "bg-amber-100 text-amber-800" :
-                            estado === "activo" ? "bg-green-100 text-green-800" :
-                              "bg-gray-100 text-gray-800"
+                        estado === "proximo_vencer" ? "bg-amber-100 text-amber-800" :
+                          estado === "activo" ? "bg-green-100 text-green-800" :
+                            "bg-gray-100 text-gray-800"
                         }`}>
                         {estado === "vencido" ? "Vencido" :
                           estado === "proximo_vencer" ? "Por vencer" :
@@ -639,6 +639,8 @@ export default function Clientes() {
 // COMPONENTES AUXILIARES
 // ============================================================
 
+import type { Cliente, Bodega } from "../../types";
+
 function CreateClienteModal({
   nuevoCliente,
   setNuevoCliente,
@@ -647,7 +649,15 @@ function CreateClienteModal({
   onCreate,
   onClose,
   err
-}: any) {
+}: {
+  nuevoCliente: any;
+  setNuevoCliente: (val: any) => void;
+  bodegas: Bodega[];
+  bodegaSeleccionada: Bodega | undefined;
+  onCreate: (e: React.FormEvent) => void;
+  onClose: () => void;
+  err: string;
+}) {
   return (
     <div className="fixed inset-0 bg-black/30 grid place-items-center p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-xl border w-full max-w-4xl p-6 space-y-4 my-8">
@@ -1111,8 +1121,8 @@ function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: ()
               <button
                 onClick={() => setMetodo("whatsapp")}
                 className={`flex-1 px-4 py-3 rounded border-2 ${metodo === "whatsapp"
-                    ? "border-green-600 bg-green-50 text-green-700"
-                    : "border-gray-300"
+                  ? "border-green-600 bg-green-50 text-green-700"
+                  : "border-gray-300"
                   }`}
                 disabled={!cliente.telefono}
               >
@@ -1122,8 +1132,8 @@ function RecordatorioModal({ cliente, onClose }: { cliente: Cliente; onClose: ()
               <button
                 onClick={() => setMetodo("email")}
                 className={`flex-1 px-4 py-3 rounded border-2 ${metodo === "email"
-                    ? "border-blue-600 bg-blue-50 text-blue-700"
-                    : "border-gray-300"
+                  ? "border-blue-600 bg-blue-50 text-blue-700"
+                  : "border-gray-300"
                   }`}
               >
                 📧 Email
@@ -1184,8 +1194,8 @@ function ImportCSVModal({
       <div className="bg-white rounded-xl border w-full max-w-4xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-xl font-semibold">📊 Importar Clientes desde CSV</h3>
-            <p className="text-sm text-gray-500 mt-1">Sube el archivo infobodegas.csv para actualizar la base de datos</p>
+            <h3 className="text-xl font-semibold">📊 Importar Clientes desde CSV/Excel</h3>
+            <p className="text-sm text-gray-500 mt-1">Sube el archivo infobodegas.csv o historicobodegas.xlsx para actualizar la base de datos</p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-black text-2xl">✕</button>
         </div>
@@ -1207,11 +1217,11 @@ function ImportCSVModal({
               <div>
                 <label className="cursor-pointer">
                   <span className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-block">
-                    Seleccionar Archivo CSV
+                    Seleccionar Archivo CSV/Excel
                   </span>
                   <input
                     type="file"
-                    accept=".csv"
+                    accept=".csv, .xlsx, .xls, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
                     onChange={onFileSelect}
                     className="hidden"
                   />
@@ -1466,8 +1476,8 @@ function ClienteDetailModal({
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2 rounded-lg transition-all ${activeTab === tab.id
-                    ? 'bg-white text-blue-600 font-semibold'
-                    : 'bg-white/10 text-white hover:bg-white/20'
+                  ? 'bg-white text-blue-600 font-semibold'
+                  : 'bg-white/10 text-white hover:bg-white/20'
                   }`}
               >
                 <span className="mr-2">{tab.icon}</span>
@@ -1627,8 +1637,8 @@ function ClienteDetailModal({
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Factura Solicitada:</span>
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${cliente.factura === 'Si' || cliente.factura === 'Sí'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
                         }`}>
                         {cliente.factura || 'No especificado'}
                       </span>
@@ -1748,8 +1758,8 @@ function ClienteDetailModal({
                           key={index}
                           onClick={() => toggleMesPagado(index)}
                           className={`p-4 rounded-xl border-2 transition-all hover:scale-105 ${isPagado
-                              ? 'bg-green-100 border-green-500 text-green-800'
-                              : 'bg-gray-50 border-gray-300 text-gray-600 hover:border-blue-400'
+                            ? 'bg-green-100 border-green-500 text-green-800'
+                            : 'bg-gray-50 border-gray-300 text-gray-600 hover:border-blue-400'
                             }`}
                         >
                           <div className="text-2xl mb-1">
