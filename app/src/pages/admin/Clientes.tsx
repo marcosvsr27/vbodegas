@@ -262,7 +262,18 @@ export default function Clientes() {
         }
 
         // Obtener datos finales usando esa fila como cabecera
-        const jsonData = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex });
+        let jsonData = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex });
+
+        // NORMALIZACIÓN DE CLAVES: Eliminar espacios en blanco de las claves
+        jsonData = jsonData.map((row: any) => {
+          const newRow: any = {};
+          Object.keys(row).forEach(key => {
+            const cleanKey = key.trim();
+            newRow[cleanKey] = row[key];
+          });
+          return newRow;
+        });
+
         setPreviewData(jsonData.slice(0, 5));
       } else {
         setErr("Formato no soportado. Usa CSV o Excel (.xlsx, .xls)");
@@ -304,7 +315,18 @@ export default function Clientes() {
           }
         }
 
-        const jsonData = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex });
+        let jsonData = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex });
+
+        // NORMALIZACIÓN DE CLAVES (CRUCIAL): Eliminar espacios en blanco
+        jsonData = jsonData.map((row: any) => {
+          const newRow: any = {};
+          Object.keys(row).forEach(key => {
+            const cleanKey = key.trim();
+            newRow[cleanKey] = row[key];
+          });
+          return newRow;
+        });
+
         payload = { jsonData };
       }
 
@@ -327,6 +349,7 @@ export default function Clientes() {
       setImportResult(data.resultado);
       await load();
 
+      // Solo cerrar automáticamente si no hubo errores
       if (data.resultado.errores === 0) {
         setTimeout(() => {
           setImportModal(false);
@@ -1318,6 +1341,17 @@ function ImportCSVModal({
                 </div>
               </div>
             </div>
+
+            {importResult.detalles && importResult.detalles.length > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-h-60 overflow-y-auto">
+                <h5 className="font-semibold text-red-900 mb-2">Detalles de Errores:</h5>
+                <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                  {importResult.detalles.map((detalle: string, idx: number) => (
+                    <li key={idx}>{detalle}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="flex justify-center">
               <button
                 onClick={onClose}
