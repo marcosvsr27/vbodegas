@@ -1005,52 +1005,55 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
     console.log("=====================================\n");
 
     console.log("📄 PAGE 1 - CONTRATO PRINCIPAL:");
-    setFieldSafe('NOMBRE#12', nombreCompleto);
+    setFieldSafe('NOMBRE', nombreCompleto);
     setFieldSafe('NACIONALIDAD', cliente.nacionalidad || '');
     setFieldSafe('ACTIVIDAD', cliente.actividad || '');
     setFieldSafe('DIRECCION', cliente.direccion || '');
     setFieldSafe('TELEFONO', telefono);
-    setFieldSafe('CORREO#1', correo);
+    setFieldSafe('CORREO', correo);
     setFieldSafe('RFC', cliente.rfc || '');
     setFieldSafe('CURP', cliente.curp || '');
     setFieldSafe('IDENTIFICACION', cliente.tipo_identificacion || '');
     setFieldSafe('NUMERO-IDENTIFICACION', cliente.numero_identificacion || '');
     setFieldSafe('BIENES', cliente.bienes_almacenar || '');
     setFieldSafe('MODULO', moduloNum);
-    setFieldSafe('ID-BODEGA#4', bodegaId);
-    setFieldSafe('M2#1', metros);
+    setFieldSafe('ID-BODEGA', bodegaId);
+    setFieldSafe('M2', metros);
 
     console.log("\n📄 PAGE 2 - TÉRMINOS:");
     setFieldSafe('DURACION', duracionTexto);
-    setFieldSafe('FECHA-HOY#5', formatDateShort(fechaInicio));
-    setFieldSafe('FECHA-FIN#1', formatDateShort(fechaFin));
-    setFieldSafe('PRECIO#1', precioFormateado);
+    // FECHA-HOY used for Start Date in contract terms
+    setFieldSafe('FECHA-HOY', formatDateShort(fechaInicio));
+    setFieldSafe('FECHA-FIN', formatDateShort(fechaFin));
+    setFieldSafe('PRECIO', precioFormateado);
 
     console.log("\n📄 PAGE 5 - DEPÓSITO:");
-    setFieldSafe('PRECIO#0', depositoFormateado);
-    setFieldSafe('CORREO#0', correo);
+    // If PRECIO is shared, this will just overwrite or be same
+    setFieldSafe('PRECIO', depositoFormateado);
+    setFieldSafe('CORREO', correo);
 
     console.log("\n📄 PAGE 6:");
-    setFieldSafe('FECHA HOY#1', formatDateShort(fechaHoy));
-    setFieldSafe('NOMBRE#11', nombreCompleto);
+    setFieldSafe('FECHA HOY', formatDateShort(fechaHoy));
+    setFieldSafe('NOMBRE', nombreCompleto);
 
     console.log("\n📄 PAGE 7 - ANEXO 1:");
-    setFieldSafe('ID-BODEGA#3', bodegaId);
-    setFieldSafe('M2#0', metros);
-    setFieldSafe('NOMBRE#10', nombreCompleto);
-    setFieldSafe('FECHA-HOY#4', formatDateShort(fechaHoy));
-    setFieldSafe('NOMBRE#9', nombreCompleto);
+    setFieldSafe('ID-BODEGA', bodegaId);
+    setFieldSafe('M2', metros);
+    setFieldSafe('NOMBRE', nombreCompleto);
+    // Anexos might use FECHA-HOY for date
+    setFieldSafe('FECHA-HOY', formatDateShort(fechaInicio));
+    setFieldSafe('NOMBRE', nombreCompleto);
 
     console.log("\n📄 PAGE 8 - ANEXO 2 (AUTORIZADOS):");
-    setFieldSafe('NOMBRE#8', nombreCompleto);
-    setFieldSafe('ID-BODEGA#2', bodegaId);
+    setFieldSafe('NOMBRE', nombreCompleto);
+    setFieldSafe('ID-BODEGA', bodegaId);
 
     // Autorizado 1
     if (autorizados[0] && autorizados[0].nombre) {
       console.log("  👤 Autorizado 1:");
       setFieldSafe('FECHA1', formatDateShort(autorizados[0].fecha || ''));
       setFieldSafe('NOMBRE DEL AUTORIZADO1', autorizados[0].nombre);
-      setFieldSafe('TIPO DE AUTORIZACION temporal permanente1', autorizados[0].tipo || 'temporal');
+      setFieldSafe('TIPO DE AUTORIZACION temporal  permanente1', autorizados[0].tipo || 'temporal');
     }
 
     // Autorizado 2
@@ -1058,7 +1061,7 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
       console.log("  👤 Autorizado 2:");
       setFieldSafe('FECHA2', formatDateShort(autorizados[1].fecha || ''));
       setFieldSafe('NOMBRE DEL AUTORIZADO2', autorizados[1].nombre);
-      setFieldSafe('TIPO DE AUTORIZACION temporal permanente2', autorizados[1].tipo || 'temporal');
+      setFieldSafe('TIPO DE AUTORIZACION temporal  permanente2', autorizados[1].tipo || 'temporal');
     }
 
     // Autorizado 3
@@ -1066,33 +1069,33 @@ app.post("/api/admin/clientes/:id/generar-contrato", authMiddleware, async (req,
       console.log("  👤 Autorizado 3:");
       setFieldSafe('FECHA3', formatDateShort(autorizados[2].fecha || ''));
       setFieldSafe('NOMBRE DEL AUTORIZADO3', autorizados[2].nombre);
-      setFieldSafe('TIPO DE AUTORIZACION temporal permanente3', autorizados[2].tipo || 'temporal');
+      setFieldSafe('TIPO DE AUTORIZACION temporal  permanente3', autorizados[2].tipo || 'temporal');
     }
 
-    setFieldSafe('NOMBRE#7', nombreCompleto);
+    setFieldSafe('NOMBRE', nombreCompleto);
 
     console.log("\n📄 PAGE 9 - ANEXO 3:");
-    setFieldSafe('NOMBRE#6', nombreCompleto);
-    setFieldSafe('ID-BODEGA#1', bodegaId);
-    setFieldSafe('NOMBRE#5', nombreCompleto);
+    setFieldSafe('NOMBRE', nombreCompleto);
+    setFieldSafe('ID-BODEGA', bodegaId);
+    setFieldSafe('NOMBRE', nombreCompleto);
 
     console.log("\n📄 PAGE 10 - ANEXO 4:");
-    setFieldSafe('NOMBRE#4', nombreCompleto);
-    setFieldSafe('FECHA HOY#0', formatDateShort(fechaHoy));
-    setFieldSafe('NOMBRE#3', nombreCompleto);
+    setFieldSafe('NOMBRE', nombreCompleto);
+    setFieldSafe('FECHA HOY', formatDateShort(fechaHoy));
+    setFieldSafe('NOMBRE', nombreCompleto);
 
     console.log("\n📄 PAGE 11 - ANEXO 5:");
-    setFieldSafe('NOMBRE#2', nombreCompleto);
-    setFieldSafe('ID-BODEGA#0', bodegaId);
-    setFieldSafe('FECHA-HOY#2', formatDateShort(fechaInicio));
-    setFieldSafe('FECHA-HOY#3', formatDateShort(fechaInicio));
-    setFieldSafe('FECHA-FIN#0', formatDateShort(fechaFin));
-    setFieldSafe('FECHA-HOY#1', formatDateShort(fechaHoy));
-    setFieldSafe('NOMBRE#1', nombreCompleto);
+    setFieldSafe('NOMBRE', nombreCompleto);
+    setFieldSafe('ID-BODEGA', bodegaId);
+    setFieldSafe('FECHA-HOY', formatDateShort(fechaInicio));
+    setFieldSafe('FECHA-FIN', formatDateShort(fechaFin));
+    // Check if FECHA HOY is used here too
+    setFieldSafe('FECHA HOY', formatDateShort(fechaHoy));
+    setFieldSafe('NOMBRE', nombreCompleto);
 
     console.log("\n📄 PAGE 14 - ANEXO 6:");
-    setFieldSafe('FECHA-HOY#0', formatDateShort(fechaHoy));
-    setFieldSafe('NOMBRE#0', nombreCompleto);
+    setFieldSafe('FECHA HOY', formatDateShort(fechaHoy));
+    setFieldSafe('NOMBRE', nombreCompleto);
 
     console.log("\n=====================================");
     console.log("✅ LLENADO COMPLETADO");
